@@ -24,10 +24,10 @@ const io = new Server(server, {
 
 // Socket connection
 io.on('connection', (socket) => {
-  console.log('✅ New client connected:', socket.id);
+  console.log('New client connected:', socket.id);
 
   socket.on('disconnect', () => {
-    console.log('❌ Client disconnected:', socket.id);
+    console.log('Client disconnected:', socket.id);
   });
 });
 
@@ -44,5 +44,5 @@ app.use('/api', apiRoutes);
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
