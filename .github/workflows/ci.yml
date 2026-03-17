@@ -1,8 +1,6 @@
-New-Item -ItemType Directory -Force .github/workflows | Out-Null
-@'
 name: CI
 
-on:
+"on":
   pull_request:
     branches: [main, develop]
 
@@ -24,4 +22,3 @@ jobs:
 
       - name: Test
         run: npm test
-'@ | Set-Content .github/workflows/ci.yml
