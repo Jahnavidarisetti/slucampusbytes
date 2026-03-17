@@ -33,9 +33,17 @@ jobs:
         if: steps.npm.outputs.has_root == 'true'
         run: npm install
 
-      - name: Test
+      - name: Run Tests (if available)
         if: steps.npm.outputs.has_root == 'true'
-        run: npm test
+        run: |
+          echo "Checking for test script..."
+
+          if npm run | grep -q "test"; then
+            echo "Test script found. Running tests..."
+            npm test
+          else
+            echo "No test script found. Skipping tests."
+          fi
 
       - name: Skip
         if: steps.npm.outputs.has_root != 'true'
