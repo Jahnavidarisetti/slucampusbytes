@@ -47,9 +47,16 @@ http://localhost:5173
 ```
 
 **Environment Variables**
+- `client/.env`
+```
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 - `server/.env`
 ```
 PORT=5000
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 **API**
@@ -75,4 +82,3 @@ Server (`server/package.json`)
 
 `npm run dev` Start server with nodemon  
 `npm start` Start server with node
-
