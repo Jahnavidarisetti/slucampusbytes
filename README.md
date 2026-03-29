@@ -1,84 +1,97 @@
-# SLU Campus Bytes
+﻿# SLU Campus Bytes
 
-SLU Campus Bytes is a full-stack starter for a campus-focused experience, with a React + Vite client and an Express + Socket.IO server. The current UI is a polished layout shell, and the API includes test routes to validate the backend wiring.
+SLU Campus Bytes is a full-stack starter project for a campus-focused experience. It includes a React + Vite frontend and an Express + Socket.IO backend with basic API routes and a Supabase health check.
 
-**Tech Stack**
-- Client: React, Vite, Tailwind CSS
-- Server: Express, Socket.IO, CORS, .env
+## Tech stack
+- Frontend: React, Vite, Tailwind CSS
+- Backend: Express, Socket.IO, CORS, dotenv, Supabase
 
-**Repository Structure**
+## Repository structure
 ```
 .
 ├─ client/                # React + Vite frontend
 │  ├─ src/                # App, styles, assets
-│  └─ package.json        # Client scripts and deps
+│  └─ package.json        # Client scripts and dependencies
 ├─ server/                # Express + Socket.IO backend
-│  ├─ routes/             # API routes
-│  ├─ index.js            # Server entry
+│  ├─ routes/             # API route definitions
+│  ├─ index.js            # Server entry point
+│  ├─ supabaseClient.js   # Server-side Supabase client
 │  └─ .env                # Server environment variables
-└─ .github/workflows/ci.yml
 ```
 
-**Prerequisites**
-- Node.js 20+ (CI uses Node 24)
-- npm (bundled with Node)
+## Prerequisites
+- Node.js 20+
+- npm (bundled with Node.js)
 
-**Quick Start**
-1. Install dependencies in each app:
-```
+## Setup
+Install dependencies for both frontend and backend:
+
+```bash
 cd client
 npm install
 cd ../server
 npm install
 ```
-2. Start the backend:
-```
+
+## Run
+Start the backend in one terminal:
+
+```bash
 cd server
 npm run dev
 ```
-3. Start the frontend:
-```
+
+Start the frontend in another terminal:
+
+```bash
 cd client
 npm run dev
 ```
-4. Open the app in your browser:
-```
+
+Open the app at:
+
+```text
 http://localhost:5173
 ```
 
-**Environment Variables**
-- `client/.env`
-```
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-- `server/.env`
-```
+## Environment variables
+### `server/.env`
+The backend requires the following values:
+
+```env
 PORT=5000
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_URL=<your-supabase-url>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ```
 
-**API**
-| Method | Endpoint    | Description           | Example Response |
-| --- | --- | --- | --- |
-| GET | `/api/test` | Test route | `{ "message": "GET route working!" }` |
-| POST | `/api/test` | Echo JSON body | `{ "message": "POST route working!", "receivedData": { ... } }` |
+### `client/.env`
+The frontend can use these values if you connect to Supabase or the local API:
 
-**Socket.IO**
-- The Socket.IO server is attached to the same Express server.
-- Connections are logged on connect/disconnect.
+```env
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+```
 
-**Scripts**
+## API routes
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/test` | Returns a test success message |
+| POST | `/api/test` | Echoes the JSON body back |
+| GET | `/api/supabase/health` | Checks Supabase connectivity |
 
-Client (`client/package.json`)
+## Socket.IO
+- Socket.IO is initialized on the same server as Express.
+- Connections are logged when clients connect and disconnect.
 
-`npm run dev` Start Vite dev server  
-`npm run build` Build for production  
-`npm run preview` Preview production build  
-`npm run lint` Lint client code
+## Scripts
+### Frontend (`client/package.json`)
+- `npm run dev` — start Vite development server
+- `npm run build` — build production assets
+- `npm run preview` — preview the production build
+- `npm run lint` — lint frontend code
 
-Server (`server/package.json`)
+### Backend (`server/package.json`)
+- `npm run dev` — start server with nodemon
+- `npm start` — start server with node
 
-`npm run dev` Start server with nodemon  
-`npm start` Start server with node
+
