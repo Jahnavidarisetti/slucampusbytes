@@ -54,6 +54,11 @@ Open the app at:
 http://localhost:5173
 ```
 
+## Frontend routes
+- `/` — Home layout shell (campus feed scaffold)
+- `/login` — SLU login (email or username)
+- `/register` — SLU registration (3-step flow)
+
 ## Environment variables
 ### `server/.env`
 The backend requires the following values:
@@ -71,6 +76,22 @@ The frontend can use these values if you connect to Supabase or the local API:
 VITE_SUPABASE_URL=<your-supabase-url>
 VITE_SUPABASE_ANON_KEY=<your-anon-key>
 ```
+
+**Enable Supabase**
+1. Create a Supabase project.
+2. In Supabase Studio, copy the Project URL and keys.
+3. Populate `client/.env` and `server/.env` with the values above.
+4. Install the Supabase CLI:
+   - macOS (Homebrew): `brew install supabase/tap/supabase`
+   - Windows (Scoop): `scoop install supabase`
+   - Windows (Chocolatey): `choco install supabase-cli`
+5. Initialize Supabase in the repo (first time only):
+   - `supabase init`
+6. Create migrations from the terminal (Supabase CLI):
+   - `supabase migration new add_profile_fields`
+7. Paste the SQL into the generated files in `supabase/migrations/`.
+8. Apply migrations in Supabase Studio -> SQL Editor.
+9. Optional: In Authentication -> Settings, enforce email confirmation if required.
 
 ## API routes
 | Method | Endpoint | Description |
@@ -93,5 +114,4 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 ### Backend (`server/package.json`)
 - `npm run dev` — start server with nodemon
 - `npm start` — start server with node
-
 
