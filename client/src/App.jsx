@@ -7,7 +7,8 @@ function App() {
       id: 1,
       club_name: "Tech Club",
       content: "Join us for Hackathon this weekend! 🚀",
-      image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
+      image:
+        "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
       likes: 5,
       comments: [
         { id: 1, text: "This looks exciting!" },
@@ -19,7 +20,8 @@ function App() {
       id: 2,
       club_name: "Dance Club",
       content: "Auditions open now 💃 Don’t miss it!",
-      image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
+      image:
+        "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
       likes: 8,
       comments: [{ id: 1, text: "Can beginners join?" }],
       showComments: false,
@@ -27,8 +29,10 @@ function App() {
     {
       id: 3,
       club_name: "Photography Club",
-      content: "Photo walk this Sunday 📸 Meet at the student center.",
-      image: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
+      content:
+        "Photo walk this Sunday 📸 Meet at the student center.",
+      image:
+        "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
       likes: 3,
       comments: [],
       showComments: false,
@@ -44,13 +48,12 @@ function App() {
 
     try {
       // await fetch(`/api/posts/${id}/like`, { method: "POST" });
-    } catch (error) {
+    } catch {
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post.id === id ? { ...post, likes: post.likes - 1 } : post
         )
       );
-      console.error("Like failed", error);
     }
   };
 
@@ -79,49 +82,66 @@ function App() {
     );
 
     try {
-      // await fetch(`/api/posts/${postId}/comments`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ text: commentText }),
-      // });
-    } catch (error) {
+      // await fetch(`/api/posts/${postId}/comments`, {...});
+    } catch {
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post.id === postId
             ? {
                 ...post,
                 comments: post.comments.filter(
-                  (comment) => comment.id !== optimisticComment.id
+                  (c) => c.id !== optimisticComment.id
                 ),
               }
             : post
         )
       );
-      console.error("Comment failed", error);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 flex justify-center">
-      <div className="max-w-[1400px] w-full min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70">
-        <div className="grid grid-cols-12 gap-4 p-6 h-[calc(100vh-64px)]">
+    <div className="h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 flex justify-center overflow-hidden">
+      
+      <div className="max-w-[1400px] w-full h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70 flex flex-col">
+        
+        {/* 🔥 HEADER */}
+        <div className="h-16 flex items-center px-6 border-b border-slate-200 bg-white/60 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="logo"
+              className="h-8 w-8 object-contain"
+            />
+            <h1 className="text-lg font-bold text-slate-800">
+              CampusConnect
+            </h1>
+          </div>
+        </div>
+
+        {/* 🔥 GRID */}
+        <div className="grid grid-cols-12 gap-4 p-6 flex-1 overflow-hidden min-h-0">
+          
+          {/* LEFT SIDEBAR */}
           <aside className="col-span-12 lg:col-span-2">
-            <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full">
+            <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full overflow-hidden">
               <h2 className="text-sm font-semibold mb-4 text-slate-700">
                 Menu
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">🏠 Home</div>
-                <div className="p-2 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">🎉 Events</div>
-                <div className="p-2 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">👥 Clubs</div>
-                <div className="p-2 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">📅 Calendar</div>
-                <div className="p-2 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">⚙️ Settings</div>
+                <div className="p-2 rounded bg-slate-100">🏠 Home</div>
+                <div className="p-2 rounded bg-slate-100">🎉 Events</div>
+                <div className="p-2 rounded bg-slate-100">👥 Clubs</div>
+                <div className="p-2 rounded bg-slate-100">📅 Calendar</div>
+                <div className="p-2 rounded bg-slate-100">⚙️ Settings</div>
               </div>
             </div>
           </aside>
 
-          <main className="col-span-12 lg:col-span-8">
-            <div className="rounded-md bg-white/70 border border-slate-200 h-full relative overflow-hidden flex flex-col">
+          {/* 🔥 FEED (SCROLLABLE ONLY) */}
+          <main className="col-span-12 lg:col-span-8 flex flex-col min-h-0">
+            <div className="rounded-md bg-white/70 border border-slate-200 flex flex-col h-full overflow-hidden min-h-0">
+              
+              {/* ONLY THIS SCROLLS */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {posts.map((post) => (
                   <PostCard
@@ -133,11 +153,13 @@ function App() {
                   />
                 ))}
               </div>
+
             </div>
           </main>
 
+          {/* RIGHT SIDEBAR */}
           <aside className="col-span-12 lg:col-span-2">
-            <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full">
+            <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full overflow-hidden">
               <h2 className="text-sm font-semibold mb-4 text-slate-700">
                 Upcoming
               </h2>
@@ -149,8 +171,10 @@ function App() {
               </div>
             </div>
           </aside>
+
         </div>
 
+        {/* 🔥 BOTTOM BAR */}
         <div className="border-t border-slate-200 bg-slate-100/80 px-6 py-3 flex items-center gap-3 h-16">
           <div className="h-8 w-8 rounded-full bg-slate-300" />
           <input
@@ -164,6 +188,7 @@ function App() {
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );
