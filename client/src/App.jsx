@@ -1,5 +1,35 @@
 import { useState } from "react";
 import PostCard from "./components/PostCard";
+// ✅ ADD THESE TESTABLE FUNCTIONS
+
+export const incrementLike = (posts, id) => {
+  return posts.map((post) =>
+    post.id === id ? { ...post, likes: post.likes + 1 } : post
+  );
+};
+
+export const toggleComments = (posts, id) => {
+  return posts.map((post) =>
+    post.id === id
+      ? { ...post, showComments: !post.showComments }
+      : post
+  );
+};
+
+export const addComment = (posts, postId, commentText) => {
+  if (!commentText.trim()) return posts;
+
+  const newComment = {
+    id: Date.now(),
+    text: commentText,
+  };
+
+  return posts.map((post) =>
+    post.id === postId
+      ? { ...post, comments: [...post.comments, newComment] }
+      : post
+  );
+};
 
 function App() {
   const [posts, setPosts] = useState([
