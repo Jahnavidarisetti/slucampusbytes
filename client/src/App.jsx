@@ -47,7 +47,7 @@ function App() {
     );
 
     try {
-      // await fetch(`/api/posts/${id}/like`, { method: "POST" });
+      
     } catch {
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
@@ -82,7 +82,6 @@ function App() {
     );
 
     try {
-      // await fetch(`/api/posts/${postId}/comments`, {...});
     } catch {
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
@@ -104,7 +103,7 @@ function App() {
       
       <div className="max-w-[1400px] w-full h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70 flex flex-col">
         
-        {/* 🔥 HEADER */}
+        { }
         <div className="h-16 flex items-center px-6 border-b border-slate-200 bg-white/60 backdrop-blur">
           <div className="flex items-center gap-3">
             <img
@@ -118,10 +117,10 @@ function App() {
           </div>
         </div>
 
-        {/* 🔥 GRID */}
+        { }
         <div className="grid grid-cols-12 gap-4 p-6 flex-1 overflow-hidden min-h-0">
           
-          {/* LEFT SIDEBAR */}
+          { }
           <aside className="col-span-12 lg:col-span-2">
             <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full overflow-hidden">
               <h2 className="text-sm font-semibold mb-4 text-slate-700">
@@ -137,11 +136,11 @@ function App() {
             </div>
           </aside>
 
-          {/* 🔥 FEED (SCROLLABLE ONLY) */}
+          { }
           <main className="col-span-12 lg:col-span-8 flex flex-col min-h-0">
             <div className="rounded-md bg-white/70 border border-slate-200 flex flex-col h-full overflow-hidden min-h-0">
               
-              {/* ONLY THIS SCROLLS */}
+              { }
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {posts.map((post) => (
                   <PostCard
@@ -157,7 +156,7 @@ function App() {
             </div>
           </main>
 
-          {/* RIGHT SIDEBAR */}
+          { }
           <aside className="col-span-12 lg:col-span-2">
             <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full overflow-hidden">
               <h2 className="text-sm font-semibold mb-4 text-slate-700">
@@ -174,7 +173,7 @@ function App() {
 
         </div>
 
-        {/* 🔥 BOTTOM BAR */}
+        { }
         <div className="border-t border-slate-200 bg-slate-100/80 px-6 py-3 flex items-center gap-3 h-16">
           <div className="h-8 w-8 rounded-full bg-slate-300" />
           <input
