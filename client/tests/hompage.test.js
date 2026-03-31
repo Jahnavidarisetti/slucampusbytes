@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { incrementLike, toggleComments, addComment } from "../src/App";
 
-describe("CB-201 Interactive Feed Tests", () => {
+describe("Interactive Feed Tests", () => {
 
   const mockPosts = [
     {

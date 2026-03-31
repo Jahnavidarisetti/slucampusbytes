@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PostCard from "./components/PostCard";
-// ✅ ADD THESE TESTABLE FUNCTIONS
+
 
 export const incrementLike = (posts, id) => {
   return posts.map((post) =>
