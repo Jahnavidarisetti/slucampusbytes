@@ -1,6 +1,8 @@
 function PostCard({ post, onLike, onToggleComments, onAddComment }) {
   return (
     <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
+      
+      { }
       <div className="flex items-center gap-3 mb-3">
         <div className="h-10 w-10 rounded-full bg-slate-300 flex items-center justify-center text-sm font-semibold text-slate-700">
           {post.club_name.charAt(0)}
@@ -11,8 +13,10 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         </div>
       </div>
 
+      { }
       <p className="text-slate-700 mb-3">{post.content}</p>
 
+      { }
       {post.image && (
         <img
           src={post.image}
@@ -21,30 +25,34 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         />
       )}
 
-      <div className="flex items-center gap-4 border-t border-slate-100 pt-3">
+      { }
+      <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
         <button
           onClick={() => onLike(post.id)}
-          className="text-sm font-medium text-slate-600 hover:text-blue-600"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-sm font-medium text-slate-700 hover:bg-blue-100 hover:text-blue-600 transition"
         >
-          👍 Like ({post.likes})
+          👍 <span>Like ({post.likes})</span>
         </button>
 
         <button
           onClick={() => onToggleComments(post.id)}
-          className="text-sm font-medium text-slate-600 hover:text-blue-600"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-sm font-medium text-slate-700 hover:bg-blue-100 hover:text-blue-600 transition"
         >
-          💬 Comment ({post.comments.length})
+          💬 <span>Comment ({post.comments.length})</span>
         </button>
       </div>
 
+      { }
       {post.showComments && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <div className="space-y-2 mb-3">
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          
+          { }
+          <div className="space-y-3 mb-4">
             {post.comments.length > 0 ? (
               post.comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                  className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-sm"
                 >
                   {comment.text}
                 </div>
@@ -54,6 +62,7 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
             )}
           </div>
 
+          { }
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -76,7 +85,7 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
             />
             <button
               type="submit"
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 transition"
             >
               Send
             </button>
