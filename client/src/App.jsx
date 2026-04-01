@@ -8,12 +8,41 @@ function newClientUuid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+export const incrementLike = (posts, id) => {
+  return posts.map((post) =>
+    post.id === id ? { ...post, likes: post.likes + 1 } : post
+  );
+};
+
+export const toggleComments = (posts, id) => {
+  return posts.map((post) =>
+    post.id === id
+      ? { ...post, showComments: !post.showComments }
+      : post
+  );
+};
+
+export const addComment = (posts, postId, commentText) => {
+  if (!commentText.trim()) return posts;
+
+  const newComment = {
+    id: Date.now(),
+    text: commentText,
+  };
+
+  return posts.map((post) =>
+    post.id === postId
+      ? { ...post, comments: [...post.comments, newComment] }
+      : post
+  );
+};
+
 function App() {
   const [posts, setPosts] = useState([
     {
       id: "00000000-0000-4000-8000-000000000001",
       club_name: "Tech Club",
-      content: "Join us for Hackathon this weekend! 🚀",
+      content: "Join us for Hackathon this weekend! ðŸš€",
       image:
         "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
       likes: 5,
@@ -24,7 +53,7 @@ function App() {
         },
         {
           id: "10000000-0000-4000-8000-000000000002",
-          text: "I’m joining for sure.",
+          text: "Iâ€™m joining for sure.",
         },
       ],
       showComments: false,
@@ -32,7 +61,7 @@ function App() {
     {
       id: "00000000-0000-4000-8000-000000000002",
       club_name: "Dance Club",
-      content: "Auditions open now 💃 Don’t miss it!",
+      content: "Auditions open now ðŸ’ƒ Donâ€™t miss it!",
       image:
         "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
       likes: 8,
@@ -48,7 +77,7 @@ function App() {
       id: "00000000-0000-4000-8000-000000000003",
       club_name: "Photography Club",
       content:
-        "Photo walk this Sunday 📸 Meet at the student center.",
+        "Photo walk this Sunday ðŸ“¸ Meet at the student center.",
       image:
         "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
       likes: 3,
@@ -58,11 +87,7 @@ function App() {
   ]);
 
   const handleLike = async (id) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === id ? { ...post, likes: post.likes + 1 } : post
-      )
-    );
+    setPosts((prevPosts) => incrementLike(prevPosts, id));
 
     try {
       
@@ -76,16 +101,12 @@ function App() {
   };
 
   const handleToggleComments = (id) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === id
-          ? { ...post, showComments: !post.showComments }
-          : post
-      )
-    );
+    setPosts((prevPosts) => toggleComments(prevPosts, id));
   };
 
   const handleAddComment = async (postId, commentText) => {
+    if (!commentText.trim()) return;
+
     const optimisticComment = {
       id: newClientUuid(),
       text: commentText,
@@ -145,11 +166,11 @@ function App() {
                 Menu
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100">🏠 Home</div>
-                <div className="p-2 rounded bg-slate-100">🎉 Events</div>
-                <div className="p-2 rounded bg-slate-100">👥 Clubs</div>
-                <div className="p-2 rounded bg-slate-100">📅 Calendar</div>
-                <div className="p-2 rounded bg-slate-100">⚙️ Settings</div>
+                <div className="p-2 rounded bg-slate-100">ðŸ  Home</div>
+                <div className="p-2 rounded bg-slate-100">ðŸŽ‰ Events</div>
+                <div className="p-2 rounded bg-slate-100">ðŸ‘¥ Clubs</div>
+                <div className="p-2 rounded bg-slate-100">ðŸ“… Calendar</div>
+                <div className="p-2 rounded bg-slate-100">âš™ï¸ Settings</div>
               </div>
             </div>
           </aside>
@@ -181,10 +202,10 @@ function App() {
                 Upcoming
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100">Hackathon 🔥</div>
-                <div className="p-2 rounded bg-slate-100">Dance Night 💃</div>
-                <div className="p-2 rounded bg-slate-100">Tech Talk 🎤</div>
-                <div className="p-2 rounded bg-slate-100">Photo Walk 📸</div>
+                <div className="p-2 rounded bg-slate-100">Hackathon ðŸ”¥</div>
+                <div className="p-2 rounded bg-slate-100">Dance Night ðŸ’ƒ</div>
+                <div className="p-2 rounded bg-slate-100">Tech Talk ðŸŽ¤</div>
+                <div className="p-2 rounded bg-slate-100">Photo Walk ðŸ“¸</div>
               </div>
             </div>
           </aside>
