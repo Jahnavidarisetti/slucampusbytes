@@ -5,8 +5,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseDefaultUserId = process.env.SUPABASE_DEFAULT_USER_ID || null;
 const supabaseDefaultUserEmail =
   process.env.SUPABASE_DEFAULT_USER_EMAIL || "anonymous@localhost";
-const supabaseDefaultUserPassword =
-  process.env.SUPABASE_DEFAULT_USER_PASSWORD || "TempPass123!";
+const supabaseDefaultUserPassword = process.env.SUPABASE_DEFAULT_USER_PASSWORD;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error(
@@ -25,6 +24,12 @@ async function ensureDefaultUserId() {
 
   const email = supabaseDefaultUserEmail;
   const password = supabaseDefaultUserPassword;
+
+  if (!password) {
+    throw new Error(
+      "Missing SUPABASE_DEFAULT_USER_PASSWORD in server/.env. Set SUPABASE_DEFAULT_USER_ID to an existing user UUID, or provide SUPABASE_DEFAULT_USER_EMAIL + SUPABASE_DEFAULT_USER_PASSWORD to auto-create/find the default user."
+    );
+  }
 
   const { data, error } = await supabase.auth.admin.createUser({
     email,
