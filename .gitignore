@@ -37,8 +37,24 @@ build/
 Thumbs.db
 *.swp
 *.swo
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 
 # Optional: local dev
 *.local
+
+# Project/log files
+logs/
+*.log
+
+# Client build outputs
+dist-ssr/
+
+# Visual Studio project files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+__pycache__/
