@@ -14,6 +14,7 @@ def test_get_posts_includes_pagination_headers(session: requests.Session, base_u
     assert r.headers.get("X-Feed-Limit") == "10"
     assert r.headers.get("X-Feed-Offset") == "0"
     assert int(r.headers.get("X-Feed-Count", "-1")) == len(r.json())
+    assert r.headers.get("X-Feed-Has-More") in ("true", "false")
 
 
 def test_default_limit_is_fifty_when_omitted(session: requests.Session, base_url: str) -> None:

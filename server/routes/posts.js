@@ -12,8 +12,16 @@ function authorFromProfile(profile) {
   return 'Member';
 }
 
-const DEFAULT_POSTS_LIMIT = 50;
-const MAX_POSTS_LIMIT = 100;
+function readIntEnv(name, fallback) {
+  const v = parseInt(process.env[name], 10);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+const MAX_POSTS_LIMIT = readIntEnv('POSTS_FEED_MAX_LIMIT', 100);
+const DEFAULT_POSTS_LIMIT = Math.min(
+  readIntEnv('POSTS_FEED_DEFAULT_LIMIT', 50),
+  MAX_POSTS_LIMIT
+);
 
 function parseFeedPagination(query = {}) {
   let limit = parseInt(query.limit, 10);
@@ -51,7 +59,7 @@ function createPostsRouter(io) {
   router.get('/', async (req, res) => {
     try {
       const { limit, offset } = parseFeedPagination(req.query);
-      const rangeEnd = offset + limit - 1;
+      const rangeEnd = offset + limit;
 
       const { data, error } = await supabase
         .from('posts')
@@ -63,10 +71,15 @@ function createPostsRouter(io) {
         return res.status(500).json({ message: error.message });
       }
 
-      const items = (data || []).map(mapRow);
+      const rows = data || [];
+      const hasMore = rows.length > limit;
+      const pageRows = hasMore ? rows.slice(0, limit) : rows;
+      const items = pageRows.map(mapRow);
+
       res.setHeader('X-Feed-Limit', String(limit));
       res.setHeader('X-Feed-Offset', String(offset));
       res.setHeader('X-Feed-Count', String(items.length));
+      res.setHeader('X-Feed-Has-More', hasMore ? 'true' : 'false');
       return res.status(200).json(items);
     } catch (err) {
       return res.status(500).json({ message: err.message });
