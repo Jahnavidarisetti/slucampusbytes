@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "./supabaseClient";
 import PostCard from "./components/PostCard";
 import { fetchPosts, createPost, updatePost } from "./api/config";
 
@@ -39,75 +40,101 @@ export const addComment = (posts, postId, commentText) => {
 };
 
 function App() {
-  const [posts, setPosts] = useState([
-    {
-      id: "00000000-0000-4000-8000-000000000001",
-      club_name: "Tech Club",
-      content: "Join us for Hackathon this weekend! 🚀",
-      image:
-        "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
-      likes: 5,
-      comments: [
-        {
-          id: "10000000-0000-4000-8000-000000000001",
-          text: "This looks exciting!",
-        },
-        {
-          id: "10000000-0000-4000-8000-000000000002",
-          text: "I’m joining for sure.",
-        },
-      ],
-      showComments: false,
-    },
-    {
-      id: "00000000-0000-4000-8000-000000000002",
-      club_name: "Dance Club",
-      content: "Auditions open now 💃 Don’t miss it!",
-      image:
-        "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
-      likes: 8,
-      comments: [
-        {
-          id: "10000000-0000-4000-8000-000000000003",
-          text: "Can beginners join?",
-        },
-      ],
-      showComments: false,
-    },
-    {
-      id: "00000000-0000-4000-8000-000000000003",
-      club_name: "Photography Club",
-      content:
-        "Photo walk this Sunday 📸 Meet at the student center.",
-      image:
-        "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
-      likes: 3,
-      comments: [],
-      showComments: false,
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
   const [newPostText, setNewPostText] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
+  async function loadProfile(userId, metadata = {}) {
+    setIsProfileLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, email, role, avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!error && data) {
+      const roleFromMetadata = metadata.role?.toString() || "";
+      const usernameFromMetadata = metadata.username?.toString() || "";
+      const profile = {
+        ...data,
+        role:
+          data.role && data.role.toLowerCase() !== "user"
+            ? data.role
+            : roleFromMetadata || data.role,
+        username: data.username || usernameFromMetadata || data.email,
+      };
+      setProfile(profile);
+    } else {
+      setProfile({
+        id: userId,
+        username: metadata.username || metadata.email || "User",
+        email: metadata.email || "",
+        role: metadata.role || "user",
+        avatar_url: metadata.avatar_url || null,
+      });
+    }
+
+    setIsProfileLoading(false);
+  }
+
+  useEffect(() => {
+    const initSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const nextSession = data.session ?? null;
+      setSession(nextSession);
+
+      if (nextSession?.user?.id) {
+        await loadProfile(nextSession.user.id, nextSession.user.user_metadata ?? {});
+      }
+    };
+
+    initSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const nextValue = nextSession ?? null;
+      setSession(nextValue);
+
+      if (nextValue?.user?.id) {
+        loadProfile(nextValue.user.id, nextValue.user.user_metadata ?? {}).catch(
+          (err) => {
+            console.warn("Unable to load profile after auth change:", err.message);
+            setProfile(null);
+          }
+        );
+      } else {
+        setProfile(null);
+        setIsProfileLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadPosts = async () => {
       try {
         const response = await fetchPosts();
+        const postsPayload = Array.isArray(response)
+          ? response
+          : response.posts ?? [];
 
-        if (response?.ok && Array.isArray(response.posts)) {
-          setPosts(
-            response.posts.map((post) => ({
-              id: post.id,
-              club_name: "CampusConnect",
-              content: post.content,
-              image: null,
-              likes: Number(post.likes ?? 0),
-              comments: Array.isArray(post.comments) ? post.comments : [],
-              showComments: false,
-            }))
-          );
-        }
+        setPosts(
+          postsPayload.map((post) => ({
+            id: post.id,
+            club_name: "CampusConnect",
+            content: post.content,
+            image: null,
+            likes: Number(post.likes ?? 0),
+            comments: Array.isArray(post.comments) ? post.comments : [],
+            showComments: false,
+          }))
+        );
       } catch (err) {
         console.warn("Unable to load posts from API:", err.message);
       }
@@ -121,13 +148,20 @@ function App() {
     const content = newPostText.trim();
 
     if (!content) return;
+    if (!session?.user?.id) {
+      setApiError("Please sign in to create a post.");
+      return;
+    }
 
     setLoadingCreate(true);
     setApiError(null);
 
     try {
-      const response = await createPost({ content });
-      const savedPost = response?.post;
+      const response = await createPost({
+        content,
+        user_id: session.user.id,
+      });
+      const savedPost = response?.post ?? response;
 
       if (savedPost) {
         setPosts((prevPosts) => [
@@ -152,11 +186,12 @@ function App() {
   };
 
   const handleLike = async (id) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === id ? { ...post, likes: post.likes + 1 } : post
-      )
+    const previousPosts = posts;
+    const updatedPosts = posts.map((post) =>
+      post.id === id ? { ...post, likes: post.likes + 1 } : post
     );
+
+    setPosts(updatedPosts);
 
     try {
       const updatedPost = updatedPosts.find((post) => post.id === id);
@@ -205,16 +240,46 @@ function App() {
       
       <div className="max-w-[1400px] w-full h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70 flex flex-col">
         
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 bg-white/60 backdrop-blur">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 bg-white/60 backdrop-blur">
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
               alt="logo"
               className="h-8 w-8 object-contain"
             />
-            <h1 className="text-lg font-bold text-slate-800">
-              CampusConnect
-            </h1>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800">
+                CampusConnect
+              </h1>
+              <p className="text-sm text-slate-500">Campus posts and org updates</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {profile && (
+              <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
+                <img
+                  src={profile.avatar_url || "/default-avatar.png"}
+                  alt={profile.username || "Profile"}
+                  className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                />
+                <div className="hidden sm:block text-sm">
+                  <div className="font-semibold text-slate-800">
+                    {profile.username || profile.email}
+                  </div>
+                  <div className="text-slate-500">{profile.role}</div>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Logout
+            </button>
           </div>
         </div>
 
@@ -230,6 +295,7 @@ function App() {
                 <div className="p-2 rounded bg-slate-100">🎉 Events</div>
                 <div className="p-2 rounded bg-slate-100">👥 Clubs</div>
                 <div className="p-2 rounded bg-slate-100">📅 Calendar</div>
+                <div className="p-2 rounded bg-slate-100">👤 Profile</div>
                 <div className="p-2 rounded bg-slate-100">⚙️ Settings</div>
               </div>
             </div>
@@ -254,31 +320,39 @@ function App() {
           </main>
 
           <aside className="col-span-12 lg:col-span-2 flex flex-col gap-4">
-            <div className="rounded-md bg-white/70 border border-slate-200 p-4 overflow-hidden">
-              <h2 className="text-sm font-semibold mb-4 text-slate-700">
-                Create Post
-              </h2>
-              <form onSubmit={handleCreatePost} className="space-y-3">
-                <textarea
-                  value={newPostText}
-                  onChange={(e) => setNewPostText(e.target.value)}
-                  placeholder="Share something..."
-                  className="w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400"
-                />
-                <button
-                  type="submit"
-                  disabled={loadingCreate}
-                  className="w-full rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-400"
-                >
-                  {loadingCreate ? 'Posting...' : 'Post'}
-                </button>
-              </form>
-              {apiError && (
-                <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {apiError}
-                </div>
-              )}
-            </div>
+            {profile?.role === "Organization" && (
+              <div className="rounded-md bg-white/70 border border-slate-200 p-4 overflow-hidden">
+                <h2 className="text-sm font-semibold mb-4 text-slate-700">
+                  Create Post
+                </h2>
+                {isProfileLoading ? (
+                  <div className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">
+                    Loading profile...
+                  </div>
+                ) : (
+                  <form onSubmit={handleCreatePost} className="space-y-3">
+                    <textarea
+                      value={newPostText}
+                      onChange={(e) => setNewPostText(e.target.value)}
+                      placeholder="Share something..."
+                      className="w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={loadingCreate}
+                      className="w-full rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    >
+                      {loadingCreate ? 'Posting...' : 'Post'}
+                    </button>
+                  </form>
+                )}
+                {apiError && (
+                  <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {apiError}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="rounded-md bg-white/70 border border-slate-200 p-4 overflow-hidden">
               <h2 className="text-sm font-semibold mb-4 text-slate-700">

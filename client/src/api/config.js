@@ -25,19 +25,22 @@ export async function apiRequest(path, options = {}) {
 }
 
 export async function fetchPosts() {
-  return apiRequest('/api/posts');
+  const payload = await apiRequest('/api/posts');
+  return Array.isArray(payload) ? payload : payload.posts ?? [];
 }
 
 export async function createPost(post) {
-  return apiRequest('/api/posts', {
+  const payload = await apiRequest('/api/posts', {
     method: 'POST',
     body: post,
   });
+  return payload.post ?? payload;
 }
 
 export async function updatePost(postId, updates) {
-  return apiRequest(`/api/posts/${postId}`, {
+  const payload = await apiRequest(`/api/posts/${postId}`, {
     method: 'PATCH',
     body: updates,
   });
+  return payload.post ?? payload;
 }
