@@ -42,7 +42,7 @@ function App() {
     {
       id: "00000000-0000-4000-8000-000000000001",
       club_name: "Tech Club",
-      content: "Join us for Hackathon this weekend! ðŸš€",
+      content: "Join us for Hackathon this weekend! 🚀",
       image:
         "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
       likes: 5,
@@ -53,7 +53,7 @@ function App() {
         },
         {
           id: "10000000-0000-4000-8000-000000000002",
-          text: "Iâ€™m joining for sure.",
+          text: "I’m joining for sure.",
         },
       ],
       showComments: false,
@@ -61,7 +61,7 @@ function App() {
     {
       id: "00000000-0000-4000-8000-000000000002",
       club_name: "Dance Club",
-      content: "Auditions open now ðŸ’ƒ Donâ€™t miss it!",
+      content: "Auditions open now 💃 Don’t miss it!",
       image:
         "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
       likes: 8,
@@ -77,7 +77,7 @@ function App() {
       id: "00000000-0000-4000-8000-000000000003",
       club_name: "Photography Club",
       content:
-        "Photo walk this Sunday ðŸ“¸ Meet at the student center.",
+        "Photo walk this Sunday 📸 Meet at the student center.",
       image:
         "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1000&q=80",
       likes: 3,
@@ -166,11 +166,11 @@ function App() {
                 Menu
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100">ðŸ  Home</div>
-                <div className="p-2 rounded bg-slate-100">ðŸŽ‰ Events</div>
-                <div className="p-2 rounded bg-slate-100">ðŸ‘¥ Clubs</div>
-                <div className="p-2 rounded bg-slate-100">ðŸ“… Calendar</div>
-                <div className="p-2 rounded bg-slate-100">âš™ï¸ Settings</div>
+                <div className="p-2 rounded bg-slate-100">🏠 Home</div>
+                <div className="p-2 rounded bg-slate-100">🎉 Events</div>
+                <div className="p-2 rounded bg-slate-100">👥 Clubs</div>
+                <div className="p-2 rounded bg-slate-100">📅 Calendar</div>
+                <div className="p-2 rounded bg-slate-100">⚙️ Settings</div>
               </div>
             </div>
           </aside>
@@ -202,10 +202,10 @@ function App() {
                 Upcoming
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100">Hackathon ðŸ”¥</div>
-                <div className="p-2 rounded bg-slate-100">Dance Night ðŸ’ƒ</div>
-                <div className="p-2 rounded bg-slate-100">Tech Talk ðŸŽ¤</div>
-                <div className="p-2 rounded bg-slate-100">Photo Walk ðŸ“¸</div>
+                <div className="p-2 rounded bg-slate-100">Hackathon 🔥</div>
+                <div className="p-2 rounded bg-slate-100">Dance Night 💃</div>
+                <div className="p-2 rounded bg-slate-100">Tech Talk 🎤</div>
+                <div className="p-2 rounded bg-slate-100">Photo Walk 📸</div>
               </div>
             </div>
           </aside>
