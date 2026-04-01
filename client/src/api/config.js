@@ -4,9 +4,9 @@ export async function apiRequest(path, options = {}) {
   const url = `${API_BASE_URL}${path}`;
   const config = {
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    ...options
+    ...options,
   };
 
   if (options.body && typeof options.body !== "string") {
@@ -22,4 +22,22 @@ export async function apiRequest(path, options = {}) {
   }
 
   return payload;
+}
+
+export async function fetchPosts() {
+  return apiRequest('/api/posts');
+}
+
+export async function createPost(post) {
+  return apiRequest('/api/posts', {
+    method: 'POST',
+    body: post,
+  });
+}
+
+export async function updatePost(postId, updates) {
+  return apiRequest(`/api/posts/${postId}`, {
+    method: 'PATCH',
+    body: updates,
+  });
 }
