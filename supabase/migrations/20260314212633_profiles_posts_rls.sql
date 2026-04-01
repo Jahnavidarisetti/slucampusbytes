@@ -1,21 +1,12 @@
--- Schema + RLS for profiles and posts
-
 create extension if not exists pgcrypto;
 
--- =========================
--- 1. PROFILES TABLE
--- =========================
-
+-- Core tables
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique not null,
   role text not null default 'user',
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
-
--- =========================
--- 2. POSTS TABLE
--- =========================
 
 create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
@@ -24,17 +15,11 @@ create table if not exists public.posts (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- =========================
--- 3. ENABLE RLS
--- =========================
-
+-- Row level security
 alter table public.profiles enable row level security;
 alter table public.posts enable row level security;
 
--- =========================
--- 4. PROFILES POLICIES
--- =========================
-
+-- Profile policies
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 drop policy if exists "Users can update their own profile" on public.profiles;
 drop policy if exists "Users can insert their own profile" on public.profiles;
@@ -55,10 +40,7 @@ on public.profiles
 for insert
 with check (auth.uid() = id);
 
--- =========================
--- 5. POSTS POLICIES
--- =========================
-
+-- Post policies
 drop policy if exists "Posts are viewable by everyone" on public.posts;
 drop policy if exists "Users can create posts" on public.posts;
 drop policy if exists "Users can update their own posts" on public.posts;
@@ -85,10 +67,7 @@ on public.posts
 for delete
 using (auth.uid() = user_id);
 
--- =========================
--- 6. TRIGGER: AUTO-CREATE PROFILE
--- =========================
-
+-- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin

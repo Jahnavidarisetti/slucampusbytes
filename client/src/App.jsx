@@ -54,7 +54,7 @@ function App() {
         },
         {
           id: "10000000-0000-4000-8000-000000000002",
-          text: "I'm joining for sure.",
+          text: "I’m joining for sure.",
         },
       ],
       showComments: false,
@@ -62,7 +62,7 @@ function App() {
     {
       id: "00000000-0000-4000-8000-000000000002",
       club_name: "Dance Club",
-      content: "Auditions open now 💃 Don't miss it!",
+      content: "Auditions open now 💃 Don’t miss it!",
       image:
         "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
       likes: 8,
@@ -287,7 +287,7 @@ function App() {
               <div className="space-y-3">
                 <div className="p-2 rounded bg-slate-100">Hackathon 🔥</div>
                 <div className="p-2 rounded bg-slate-100">Dance Night 💃</div>
-                <div className="p-2 rounded bg-slate-100">Tech Talk 💡</div>
+                <div className="p-2 rounded bg-slate-100">Tech Talk 🎤</div>
                 <div className="p-2 rounded bg-slate-100">Photo Walk 📸</div>
               </div>
             </div>
