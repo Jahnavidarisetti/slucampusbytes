@@ -53,6 +53,17 @@ function mapRow(row) {
   };
 }
 
+function sortFeedReverseChronological(items) {
+  return [...items].sort((a, b) => {
+    const tb = new Date(b.createdAt).getTime();
+    const ta = new Date(a.createdAt).getTime();
+    if (Number.isFinite(tb) && Number.isFinite(ta) && tb !== ta) {
+      return tb - ta;
+    }
+    return String(b.id).localeCompare(String(a.id));
+  });
+}
+
 function createPostsRouter(io) {
   const router = express.Router();
 
@@ -65,6 +76,7 @@ function createPostsRouter(io) {
         .from('posts')
         .select('id, content, created_at, user_id, profiles(email)')
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(offset, rangeEnd);
 
       if (error) {
@@ -74,7 +86,7 @@ function createPostsRouter(io) {
       const rows = data || [];
       const hasMore = rows.length > limit;
       const pageRows = hasMore ? rows.slice(0, limit) : rows;
-      const items = pageRows.map(mapRow);
+      const items = sortFeedReverseChronological(pageRows.map(mapRow));
 
       res.setHeader('X-Feed-Limit', String(limit));
       res.setHeader('X-Feed-Offset', String(offset));

@@ -1,33 +1,51 @@
 import { useState } from "react";
 import PostCard from "./components/PostCard";
 
+function newClientUuid() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 function App() {
   const [posts, setPosts] = useState([
     {
-      id: 1,
+      id: "00000000-0000-4000-8000-000000000001",
       club_name: "Tech Club",
       content: "Join us for Hackathon this weekend! 🚀",
       image:
         "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80",
       likes: 5,
       comments: [
-        { id: 1, text: "This looks exciting!" },
-        { id: 2, text: "I’m joining for sure." },
+        {
+          id: "10000000-0000-4000-8000-000000000001",
+          text: "This looks exciting!",
+        },
+        {
+          id: "10000000-0000-4000-8000-000000000002",
+          text: "I’m joining for sure.",
+        },
       ],
       showComments: false,
     },
     {
-      id: 2,
+      id: "00000000-0000-4000-8000-000000000002",
       club_name: "Dance Club",
       content: "Auditions open now 💃 Don’t miss it!",
       image:
         "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1000&q=80",
       likes: 8,
-      comments: [{ id: 1, text: "Can beginners join?" }],
+      comments: [
+        {
+          id: "10000000-0000-4000-8000-000000000003",
+          text: "Can beginners join?",
+        },
+      ],
       showComments: false,
     },
     {
-      id: 3,
+      id: "00000000-0000-4000-8000-000000000003",
       club_name: "Photography Club",
       content:
         "Photo walk this Sunday 📸 Meet at the student center.",
@@ -69,7 +87,7 @@ function App() {
 
   const handleAddComment = async (postId, commentText) => {
     const optimisticComment = {
-      id: Date.now(),
+      id: newClientUuid(),
       text: commentText,
     };
 
