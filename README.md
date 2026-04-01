@@ -67,6 +67,7 @@ The backend requires the following values:
 PORT=5000
 SUPABASE_URL=<your-supabase-url>
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+SUPABASE_DEFAULT_USER_PASSWORD=<strong-random-password>
 ```
 
 ### `client/.env`

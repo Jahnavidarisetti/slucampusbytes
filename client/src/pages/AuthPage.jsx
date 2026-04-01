@@ -56,6 +56,12 @@ function AuthPage({ initialMode = "login" }) {
   }, [initialMode]);
 
   useEffect(() => {
+    if (session) {
+      navigate("/");
+    }
+  }, [session, navigate]);
+
+  useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session ?? null);
@@ -129,6 +135,7 @@ function AuthPage({ initialMode = "login" }) {
           type: "success",
           text: "Welcome back! You are signed in.",
         });
+        navigate("/");
       }
     } catch (error) {
       setAuthMessage({
@@ -265,6 +272,10 @@ function AuthPage({ initialMode = "login" }) {
           ? warningText
           : "Registration complete. Check your SLU email to verify and sign in.",
       });
+
+      if (hasSession) {
+        navigate("/");
+      }
     } catch (error) {
       setRegisterMessage({
         type: "error",
