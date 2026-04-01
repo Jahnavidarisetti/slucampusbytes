@@ -110,8 +110,25 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 - `npm run build` — build production assets
 - `npm run preview` — preview the production build
 - `npm run lint` — lint frontend code
+- `npm run test` — run frontend tests 
 
 ### Backend (`server/package.json`)
 - `npm run dev` — start server with nodemon
 - `npm start` — start server with node
+- `npm run test` — run backend tests
+
+## Running tests
+Frontend tests (Vitest):
+
+```bash
+cd client
+npm run test
+```
+
+Backend tests (Node):
+
+```bash
+cd server
+npm run test
+```
 
