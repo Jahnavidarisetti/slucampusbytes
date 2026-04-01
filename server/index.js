@@ -4,6 +4,8 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
+const createPostsRouter = require('./routes/posts');
+const { setupSocketHandlers } = require('./sockets/postHandler');
 
 const app = express();
 
@@ -23,13 +25,7 @@ const io = new Server(server, {
 });
 
 // Socket connection
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
+setupSocketHandlers(io);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -39,6 +35,7 @@ app.get('/', (req, res) => {
 // Import routes
 const apiRoutes = require('./routes/api');
 app.use('/api', apiRoutes);
+app.use('/api/posts', createPostsRouter(io));
 
 // Start server
 const PORT = process.env.PORT || 5000;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { incrementLike, toggleComments, addComment } from "../src/App";
+import { incrementLike, toggleComments, addComment } from "../../client/src/App";
 
 describe("Interactive Feed Tests", () => {
 
