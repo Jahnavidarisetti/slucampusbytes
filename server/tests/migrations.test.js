@@ -40,6 +40,18 @@ test('profiles + posts migration includes profile trigger', () => {
   assert.match(sql, /handle_new_user/i);
 });
 
+test('organization followers migration creates mapping table with constraints and indexes', () => {
+  const sql = readMigration('20260416120000_create_organization_followers.sql');
+
+  assert.match(sql, /create table if not exists public\.organization_followers/i);
+  assert.match(sql, /user_id uuid not null references public\.profiles\(id\) on delete cascade/i);
+  assert.match(sql, /organization_id uuid not null/i);
+  assert.match(sql, /primary key \(user_id, organization_id\)/i);
+  assert.match(sql, /create index if not exists organization_followers_organization_id_idx/i);
+  assert.match(sql, /create index if not exists organization_followers_user_id_idx/i);
+  assert.match(sql, /enable row level security/i);
+});
+
 async function run() {
   let failures = 0;
 
