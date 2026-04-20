@@ -40,6 +40,7 @@ function AuthPage({ initialMode = "login" }) {
     role: roleOptions[0],
     fullName: "",
     organizationDescription: "",
+    studentDescription: "",
     username: "",
     email: "",
     password: "",
