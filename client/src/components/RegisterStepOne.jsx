@@ -51,6 +51,38 @@ function RegisterStepOne({
         />
       </label>
 
+      <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+        {isOrganization ? "Organization username" : "Username"}
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
+          placeholder={isOrganization ? "slucompsoc" : "billiken23"}
+          value={registerData.username}
+          onChange={(event) =>
+            setRegisterData((prev) => ({
+              ...prev,
+              username: event.target.value,
+            }))
+          }
+        />
+      </label>
+
+      {!isOrganization && (
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+          Description
+          <textarea
+            className="min-h-[120px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
+            placeholder="Share a short intro about yourself."
+            value={registerData.studentDescription}
+            onChange={(event) =>
+              setRegisterData((prev) => ({
+                ...prev,
+                studentDescription: event.target.value,
+              }))
+            }
+          />
+        </label>
+      )}
+
       {isOrganization && (
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
           Description
@@ -67,21 +99,6 @@ function RegisterStepOne({
           />
         </label>
       )}
-
-      <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-        {isOrganization ? "Organization username" : "Username"}
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none"
-          placeholder={isOrganization ? "slucompsoc" : "billiken23"}
-          value={registerData.username}
-          onChange={(event) =>
-            setRegisterData((prev) => ({
-              ...prev,
-              username: event.target.value,
-            }))
-          }
-        />
-      </label>
 
       <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
         {isOrganization ? "Organization SLU email" : "SLU email"}
