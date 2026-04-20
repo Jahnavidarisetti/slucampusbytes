@@ -23,7 +23,7 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         <img
           src={post.image}
           alt="post"
-          className="mb-3 max-h-96 w-full rounded-xl border border-slate-100 object-cover"
+          className="mb-3 max-h-[520px] w-full rounded-xl border border-slate-100 bg-slate-50 object-contain"
         />
       )}
 

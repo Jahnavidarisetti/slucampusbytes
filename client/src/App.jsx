@@ -12,15 +12,6 @@ function newClientUuid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-function serializePostContent({ title, description, image }) {
-  const payload = JSON.stringify({
-    title: title.trim(),
-    description: description.trim(),
-    image: image || null,
-  });
-  return `${POST_CONTENT_PREFIX}${encodeURIComponent(payload)}`;
-}
-
 function parsePostContent(content) {
   if (typeof content !== "string") {
     return { title: "", description: "", image: null };
@@ -41,6 +32,30 @@ function parsePostContent(content) {
   } catch (_error) {
     return { title: "", description: content, image: null };
   }
+}
+
+function mapPostFromApi(post) {
+  const parsedLegacy = parsePostContent(post.content);
+  return {
+    id: post.id,
+    club_name: "CampusConnect",
+    title:
+      (typeof post.title === "string" && post.title.trim()) ||
+      parsedLegacy.title ||
+      "",
+    content:
+      (typeof post.description === "string" && post.description.trim()) ||
+      parsedLegacy.description ||
+      post.content ||
+      "",
+    image:
+      (typeof post.image_url === "string" && post.image_url.trim()) ||
+      parsedLegacy.image ||
+      null,
+    likes: Number(post.likes ?? 0),
+    comments: Array.isArray(post.comments) ? post.comments : [],
+    showComments: false,
+  };
 }
 
 export const incrementLike = (posts, id) => {
@@ -160,21 +175,7 @@ function App() {
           ? response
           : response.posts ?? [];
 
-        setPosts(
-          postsPayload.map((post) => {
-            const parsed = parsePostContent(post.content);
-            return {
-              id: post.id,
-              club_name: "CampusConnect",
-              title: parsed.title,
-              content: parsed.description,
-              image: parsed.image,
-              likes: Number(post.likes ?? 0),
-              comments: Array.isArray(post.comments) ? post.comments : [],
-              showComments: false,
-            };
-          })
-        );
+        setPosts(postsPayload.map(mapPostFromApi));
       } catch (err) {
         console.warn("Unable to load posts from API:", err.message);
       }
@@ -231,6 +232,75 @@ function App() {
     reader.readAsDataURL(file);
   };
 
+  const createPostDirectToSupabase = async ({
+    userId,
+    title,
+    description,
+    imageUrl,
+  }) => {
+    const isMissingColumnError = (error) => {
+      const message = String(error?.message || "").toLowerCase();
+      return message.includes("column") && message.includes("does not exist");
+    };
+
+    const selectAttempts = [
+      "id, content, title, description, image_url, created_at, likes, comments",
+      "id, content, title, description, image_url, created_at, likes",
+      "id, content, created_at, likes, comments",
+      "id, content, created_at, likes",
+      "id, content, created_at",
+    ];
+
+    const payloads = [
+      {
+        user_id: userId,
+        content: description,
+        title,
+        description,
+        image_url: imageUrl || null,
+        likes: 0,
+        comments: [],
+      },
+      {
+        user_id: userId,
+        content: description,
+        title,
+        description,
+        image_url: imageUrl || null,
+        likes: 0,
+      },
+      {
+        user_id: userId,
+        content: description,
+      },
+    ];
+
+    let lastError = null;
+
+    for (const payload of payloads) {
+      for (const selection of selectAttempts) {
+        const { data, error } = await supabase
+          .from("posts")
+          .insert([payload])
+          .select(selection)
+          .single();
+
+        if (!error) {
+          return data;
+        }
+
+        if (isMissingColumnError(error)) {
+          lastError = error;
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError || new Error("Unable to create post in Supabase.");
+  };
+
   const handleCreatePost = async (event) => {
     event.preventDefault();
     const title = postTitle.trim();
@@ -246,41 +316,58 @@ function App() {
       return;
     }
 
-    const content = serializePostContent({
-      title,
-      description,
-      image: postImagePreview,
-    });
-
     setLoadingCreate(true);
     setApiError(null);
 
     try {
       const response = await createPost({
-        content,
+        content: description,
+        title,
+        description,
+        image_url: postImagePreview,
         user_id: session.user.id,
       });
       const savedPost = response?.post ?? response;
 
       if (savedPost) {
         setPosts((prevPosts) => [
-          {
-            id: savedPost.id,
-            club_name: "CampusConnect",
-            title,
-            content: description,
-            image: postImagePreview,
-            likes: Number(savedPost.likes ?? 0),
-            comments: Array.isArray(savedPost.comments) ? savedPost.comments : [],
-            showComments: false,
-          },
+          mapPostFromApi({
+            ...savedPost,
+            title: savedPost.title ?? title,
+            description: savedPost.description ?? description,
+            image_url: savedPost.image_url ?? postImagePreview,
+            content: savedPost.content ?? description,
+          }),
           ...prevPosts,
         ]);
         resetComposer();
         setIsComposerOpen(false);
       }
     } catch (err) {
-      setApiError(err.message);
+      try {
+        const savedPost = await createPostDirectToSupabase({
+          userId: session.user.id,
+          title,
+          description,
+          imageUrl: postImagePreview,
+        });
+
+        setPosts((prevPosts) => [
+          mapPostFromApi({
+            ...savedPost,
+            title: savedPost.title ?? title,
+            description: savedPost.description ?? description,
+            image_url: savedPost.image_url ?? postImagePreview,
+            content: savedPost.content ?? description,
+          }),
+          ...prevPosts,
+        ]);
+        resetComposer();
+        setIsComposerOpen(false);
+        setApiError(null);
+      } catch (fallbackError) {
+        setApiError(fallbackError.message || err.message);
+      }
     } finally {
       setLoadingCreate(false);
     }
