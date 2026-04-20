@@ -45,7 +45,9 @@ function mapRow(row) {
   return {
     id: row.id,
     author: authorFromProfile(profile),
+    title: row.title,
     content: row.content,
+    image_url: row.image_url,
     createdAt:
       typeof row.created_at === 'string'
         ? row.created_at
@@ -74,7 +76,7 @@ function createPostsRouter(io) {
 
       const { data, error } = await supabase
         .from('posts')
-        .select('id, content, created_at, user_id, profiles(email)')
+        .select('id, title, content, image_url, created_at, user_id, profiles(email)')
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .range(offset, rangeEnd);
@@ -99,7 +101,7 @@ function createPostsRouter(io) {
   });
 
   router.post('/', async (req, res) => {
-    const { content, user_id: bodyUserId } = req.body || {};
+    const { title, content, image_url, user_id: bodyUserId } = req.body || {};
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return res.status(400).json({
@@ -127,9 +129,11 @@ function createPostsRouter(io) {
         .from('posts')
         .insert({
           user_id: userId,
-          content: postContent
+          title: title?.trim() || null,
+          content: postContent,
+          image_url: image_url?.trim() || null
         })
-        .select('id, content, created_at, user_id, profiles(email)')
+        .select('id, title, content, image_url, created_at, user_id, profiles(email)')
         .single();
 
       if (error) {

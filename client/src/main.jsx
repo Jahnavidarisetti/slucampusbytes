@@ -10,6 +10,7 @@ import {
 import "./index.css";
 import App from "./App.jsx";
 import AuthPage from "./pages/AuthPage";
+import CreatePostPage from "./pages/CreatePostPage";
 import { supabase } from "./supabaseClient";
 
 function RequireAuth({ children }) {
@@ -66,6 +67,14 @@ createRoot(document.getElementById("root")).render(
           element={
             <RequireAuth>
               <App />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/create-post"
+          element={
+            <RequireAuth>
+              <CreatePostPage />
             </RequireAuth>
           }
         />

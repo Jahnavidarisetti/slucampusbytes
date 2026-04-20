@@ -110,13 +110,17 @@ test('GET /api/posts returns historical feed data latest first', async () => {
             data: [
               {
                 id: 'older-post',
+                title: null,
                 content: 'Older content',
+                image_url: null,
                 created_at: '2026-03-29T12:00:00.000Z',
                 profiles: { email: 'older@example.com' }
               },
               {
                 id: 'newer-post',
+                title: null,
                 content: 'Newer content',
+                image_url: null,
                 created_at: '2026-03-31T12:00:00.000Z',
                 profiles: { email: 'newer@example.com' }
               }
@@ -148,7 +152,9 @@ test('GET /api/posts returns historical feed data latest first', async () => {
     assert.deepEqual(body[0], {
       id: 'newer-post',
       author: 'newer',
+      title: null,
       content: 'Newer content',
+      image_url: null,
       createdAt: '2026-03-31T12:00:00.000Z'
     });
     assert.equal(response.headers.get('x-feed-has-more'), 'false');
@@ -207,7 +213,9 @@ test('POST /api/posts creates a post and broadcasts new_post', async () => {
           return Promise.resolve({
             data: {
               id: 'created-post-1',
+              title: null,
               content: 'Admin announcement',
+              image_url: null,
               created_at: '2026-03-31T18:45:00.000Z',
               user_id: 'admin-123',
               profiles: { email: 'admin@example.com' }
@@ -244,12 +252,16 @@ test('POST /api/posts creates a post and broadcasts new_post', async () => {
     assert.equal(response.status, 201);
     assert.deepEqual(insertedPayload, {
       user_id: 'admin-123',
-      content: 'Admin announcement'
+      title: null,
+      content: 'Admin announcement',
+      image_url: null
     });
     assert.deepEqual(body, {
       id: 'created-post-1',
       author: 'admin',
+      title: null,
       content: 'Admin announcement',
+      image_url: null,
       createdAt: '2026-03-31T18:45:00.000Z'
     });
     assert.equal(broadcastCalls.length, 1);

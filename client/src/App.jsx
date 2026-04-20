@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import PostCard from "./components/PostCard";
 import { fetchPosts, createPost, updatePost } from "./api/config";
@@ -40,9 +41,8 @@ export const addComment = (posts, postId, commentText) => {
 };
 
 function App() {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
-  const [newPostText, setNewPostText] = useState("");
-  const [loadingCreate, setLoadingCreate] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -128,8 +128,9 @@ function App() {
           postsPayload.map((post) => ({
             id: post.id,
             club_name: "CampusConnect",
+            title: post.title,
             content: post.content,
-            image: null,
+            image: post.image_url,
             likes: Number(post.likes ?? 0),
             comments: Array.isArray(post.comments) ? post.comments : [],
             showComments: false,
@@ -143,47 +144,6 @@ function App() {
     loadPosts();
   }, []);
 
-  const handleCreatePost = async (event) => {
-    event.preventDefault();
-    const content = newPostText.trim();
-
-    if (!content) return;
-    if (!session?.user?.id) {
-      setApiError("Please sign in to create a post.");
-      return;
-    }
-
-    setLoadingCreate(true);
-    setApiError(null);
-
-    try {
-      const response = await createPost({
-        content,
-        user_id: session.user.id,
-      });
-      const savedPost = response?.post ?? response;
-
-      if (savedPost) {
-        setPosts((prevPosts) => [
-          {
-            id: savedPost.id,
-            club_name: "CampusConnect",
-            content: savedPost.content,
-            image: null,
-            likes: Number(savedPost.likes ?? 0),
-            comments: Array.isArray(savedPost.comments) ? savedPost.comments : [],
-            showComments: false,
-          },
-          ...prevPosts,
-        ]);
-        setNewPostText("");
-      }
-    } catch (err) {
-      setApiError(err.message);
-    } finally {
-      setLoadingCreate(false);
-    }
-  };
 
   const handleLike = async (id) => {
     const previousPosts = posts;
@@ -323,28 +283,22 @@ function App() {
             {profile?.role === "Organization" && (
               <div className="rounded-md bg-white/70 border border-slate-200 p-4 overflow-hidden">
                 <h2 className="text-sm font-semibold mb-4 text-slate-700">
-                  Create Post
+                  Actions
                 </h2>
                 {isProfileLoading ? (
                   <div className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">
                     Loading profile...
                   </div>
                 ) : (
-                  <form onSubmit={handleCreatePost} className="space-y-3">
-                    <textarea
-                      value={newPostText}
-                      onChange={(e) => setNewPostText(e.target.value)}
-                      placeholder="Share something..."
-                      className="w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400"
-                    />
-                    <button
-                      type="submit"
-                      disabled={loadingCreate}
-                      className="w-full rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-400"
-                    >
-                      {loadingCreate ? 'Posting...' : 'Post'}
-                    </button>
-                  </form>
+                  <button
+                    onClick={() => navigate("/create-post")}
+                    className="w-full rounded-lg bg-blue-500 px-4 py-3 text-sm font-bold text-white hover:bg-blue-600 transition shadow-md shadow-blue-100 flex items-center justify-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Create Post
+                  </button>
                 )}
                 {apiError && (
                   <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

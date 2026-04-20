@@ -2,7 +2,6 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
   return (
     <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
       
-      { }
       <div className="flex items-center gap-3 mb-3">
         <div className="h-10 w-10 rounded-full bg-slate-300 flex items-center justify-center text-sm font-semibold text-slate-700">
           {post.club_name.charAt(0)}
@@ -13,19 +12,22 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         </div>
       </div>
 
-      { }
-      <p className="text-slate-700 mb-3">{post.content}</p>
-
-      { }
-      {post.image && (
-        <img
-          src={post.image}
-          alt="post"
-          className="rounded-lg mb-3 w-full max-h-80 object-cover"
-        />
+      {post.title && (
+        <h2 className="text-lg font-bold text-slate-900 mb-2">{post.title}</h2>
       )}
 
-      { }
+      <p className="text-slate-700 mb-3 whitespace-pre-wrap">{post.content}</p>
+
+      {post.image && (
+        <div className="rounded-xl overflow-hidden border border-slate-100 mb-3">
+          <img
+            src={post.image}
+            alt={post.title || "post image"}
+            className="w-full max-h-96 object-cover"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
         <button
           onClick={() => onLike(post.id)}
@@ -42,11 +44,9 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         </button>
       </div>
 
-      { }
       {post.showComments && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           
-          { }
           <div className="space-y-3 mb-4">
             {post.comments.length > 0 ? (
               post.comments.map((comment) => (
@@ -62,7 +62,6 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
             )}
           </div>
 
-          { }
           <form
             onSubmit={(e) => {
               e.preventDefault();
