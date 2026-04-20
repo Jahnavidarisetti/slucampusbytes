@@ -21,7 +21,7 @@ function RegisterStepTwo({ avatarPreview, onFileChange, onBack, onContinue }) {
       <input
         type="file"
         accept="image/*"
-        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm"
+        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm file:mr-3 file:rounded-lg file:border file:border-sky-300 file:bg-sky-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-sky-700 file:transition hover:file:bg-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-200"
         onChange={onFileChange}
       />
 
