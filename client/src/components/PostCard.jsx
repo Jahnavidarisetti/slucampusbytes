@@ -1,13 +1,27 @@
 function PostCard({ post, onLike, onToggleComments, onAddComment }) {
+  const displayName =
+    (typeof post.organization_name === "string" && post.organization_name.trim()) ||
+    "CampusConnect";
+
+  const postedAtLabel = post.created_at
+    ? new Date(post.created_at).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "Just now";
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
-          {post.club_name.charAt(0)}
+          {displayName.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h3 className="font-semibold text-slate-800">{post.club_name}</h3>
-          <p className="text-xs text-slate-500">Campus Event</p>
+          <h3 className="font-semibold text-slate-800">{displayName}</h3>
+          <p className="text-xs text-slate-500">Posted {postedAtLabel}</p>
         </div>
       </div>
 

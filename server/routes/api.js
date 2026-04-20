@@ -32,9 +32,21 @@ router.get('/supabase/health', async (req, res) => {
 });
 
 function normalizePost(post) {
+  const profile = post.profiles && typeof post.profiles === 'object' ? post.profiles : null;
+  const profileEmail =
+    typeof profile?.email === 'string' ? profile.email.trim().toLowerCase() : '';
+  const emailName = profileEmail ? profileEmail.split('@')[0] : '';
+
+  const organizationName =
+    (typeof profile?.full_name === 'string' && profile.full_name.trim()) ||
+    (typeof profile?.username === 'string' && profile.username.trim()) ||
+    emailName ||
+    'CampusConnect';
+
   return {
     id: post.id,
     title: typeof post.title === 'string' ? post.title : '',
+    organization_name: organizationName,
     description:
       typeof post.description === 'string'
         ? post.description
@@ -56,6 +68,8 @@ function missingColumnError(error) {
 
 async function selectPostsWithFallback({ id = null, limit = null } = {}) {
   const selectAttempts = [
+    'id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)',
+    'id, content, title, description, image_url, created_at, likes, comments, profiles(username, email)',
     'id, content, title, description, image_url, created_at, likes, comments',
     'id, content, title, description, image_url, created_at, likes',
     'id, content, created_at, likes, comments',
@@ -129,6 +143,8 @@ function compactInsertPayload(payload, level) {
 
 async function insertPostWithFallback(payload) {
   const selectAttempts = [
+    'id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)',
+    'id, content, title, description, image_url, created_at, likes, comments, profiles(username, email)',
     'id, content, title, description, image_url, created_at, likes, comments',
     'id, content, title, description, image_url, created_at, likes',
     'id, content, created_at, likes, comments',
@@ -253,7 +269,7 @@ router.patch('/posts/:id', async (req, res) => {
       .from('posts')
       .update(updates)
       .eq('id', id)
-      .select('id, content, title, description, image_url, created_at, likes, comments')
+      .select('id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)')
       .single();
 
     if (error && missingColumnError(error)) {
@@ -268,7 +284,7 @@ router.patch('/posts/:id', async (req, res) => {
         .from('posts')
         .update({ likes: updates.likes })
         .eq('id', id)
-        .select('id, content, created_at, likes')
+        .select('id, content, created_at, likes, profiles(username, email)')
         .single();
 
       data = fallback.data;

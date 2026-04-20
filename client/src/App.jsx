@@ -38,7 +38,10 @@ function mapPostFromApi(post) {
   const parsedLegacy = parsePostContent(post.content);
   return {
     id: post.id,
-    club_name: "CampusConnect",
+    organization_name:
+      (typeof post.organization_name === "string" && post.organization_name.trim()) ||
+      (typeof post.club_name === "string" && post.club_name.trim()) ||
+      "CampusConnect",
     title:
       (typeof post.title === "string" && post.title.trim()) ||
       parsedLegacy.title ||
@@ -54,6 +57,7 @@ function mapPostFromApi(post) {
       null,
     likes: Number(post.likes ?? 0),
     comments: Array.isArray(post.comments) ? post.comments : [],
+    created_at: post.created_at || post.createdAt || null,
     showComments: false,
   };
 }
@@ -103,7 +107,7 @@ function App() {
     setIsProfileLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, email, role, avatar_url")
+      .select("id, username, full_name, email, role, avatar_url")
       .eq("id", userId)
       .maybeSingle();
 
@@ -123,6 +127,7 @@ function App() {
       setProfile({
         id: userId,
         username: metadata.username || metadata.email || "User",
+        full_name: metadata.full_name || "",
         email: metadata.email || "",
         role: metadata.role || "user",
         avatar_url: metadata.avatar_url || null,
@@ -330,6 +335,12 @@ function App() {
       const savedPost = response?.post ?? response;
 
       if (savedPost) {
+        const organizationName =
+          (typeof profile?.full_name === "string" && profile.full_name.trim()) ||
+          (typeof profile?.username === "string" && profile.username.trim()) ||
+          (typeof profile?.email === "string" && profile.email.trim()) ||
+          "CampusConnect";
+
         setPosts((prevPosts) => [
           mapPostFromApi({
             ...savedPost,
@@ -337,6 +348,8 @@ function App() {
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? postImagePreview,
             content: savedPost.content ?? description,
+            organization_name: savedPost.organization_name ?? organizationName,
+            created_at: savedPost.created_at ?? new Date().toISOString(),
           }),
           ...prevPosts,
         ]);
@@ -352,6 +365,12 @@ function App() {
           imageUrl: postImagePreview,
         });
 
+        const organizationName =
+          (typeof profile?.full_name === "string" && profile.full_name.trim()) ||
+          (typeof profile?.username === "string" && profile.username.trim()) ||
+          (typeof profile?.email === "string" && profile.email.trim()) ||
+          "CampusConnect";
+
         setPosts((prevPosts) => [
           mapPostFromApi({
             ...savedPost,
@@ -359,6 +378,8 @@ function App() {
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? postImagePreview,
             content: savedPost.content ?? description,
+            organization_name: savedPost.organization_name ?? organizationName,
+            created_at: savedPost.created_at ?? new Date().toISOString(),
           }),
           ...prevPosts,
         ]);
