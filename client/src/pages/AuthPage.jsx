@@ -39,6 +39,7 @@ function AuthPage({ initialMode = "login" }) {
   const [registerData, setRegisterData] = useState({
     role: roleOptions[0],
     fullName: "",
+    organizationDescription: "",
     username: "",
     email: "",
     password: "",
@@ -90,19 +91,35 @@ function AuthPage({ initialMode = "login" }) {
     return () => URL.revokeObjectURL(url);
   }, [avatarFile]);
 
-  const registerSummary = useMemo(
-    () => [
+  const registerSummary = useMemo(() => {
+    const baseSummary = [
       { label: "Role", value: registerData.role },
-      { label: "Full name", value: registerData.fullName || "-" },
+      {
+        label:
+          registerData.role === "Organization"
+            ? "Organization name"
+            : "Full name",
+        value: registerData.fullName || "-",
+      },
+    ];
+
+    if (registerData.role === "Organization") {
+      baseSummary.push({
+        label: "Description",
+        value: registerData.organizationDescription || "-",
+      });
+    }
+
+    return [
+      ...baseSummary,
       { label: "Username", value: registerData.username || "-" },
       { label: "Email", value: registerData.email || "-" },
       {
         label: "Avatar",
         value: avatarFile ? avatarFile.name : "No avatar selected",
       },
-    ],
-    [registerData, avatarFile]
-  );
+    ];
+  }, [registerData, avatarFile]);
 
   const resetMessages = () => {
     setAuthMessage({ type: "", text: "" });
@@ -156,7 +173,18 @@ function AuthPage({ initialMode = "login" }) {
     }
 
     if (!registerData.fullName.trim()) {
-      issues.push("Enter your full name.");
+      issues.push(
+        registerData.role === "Organization"
+          ? "Enter your organization name."
+          : "Enter your full name."
+      );
+    }
+
+    if (
+      registerData.role === "Organization" &&
+      !registerData.organizationDescription.trim()
+    ) {
+      issues.push("Enter a short organization description.");
     }
 
     if (!validateUsername(registerData.username)) {
@@ -230,6 +258,10 @@ function AuthPage({ initialMode = "login" }) {
         options: {
           data: {
             full_name: registerData.fullName,
+            organization_description:
+              registerData.role === "Organization"
+                ? registerData.organizationDescription
+                : null,
             username: registerData.username,
             role: registerData.role,
           },
@@ -253,6 +285,10 @@ function AuthPage({ initialMode = "login" }) {
           await updateProfile(userId, {
             username: registerData.username,
             full_name: registerData.fullName,
+            organization_description:
+              registerData.role === "Organization"
+                ? registerData.organizationDescription
+                : null,
             role: registerData.role,
             avatar_url: avatarUrl || null,
           });
