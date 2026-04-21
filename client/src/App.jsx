@@ -5,7 +5,13 @@ import AvatarBadge from "./components/AvatarBadge";
 import PostCard from "./components/PostCard";
 import OrgSearchBar from "./components/OrgSearchBar";
 import { fetchPosts, createPost, updatePost } from "./api/config";
-import { syncProfileFromMetadata } from "./lib/supabaseAuth";
+import {
+  fetchOrganizationByProfileId,
+} from "./api/organizations";
+import {
+  syncOrganizationFromProfile,
+  syncProfileFromMetadata,
+} from "./lib/supabaseAuth";
 import {
   appendComment,
   incrementLike,
@@ -38,6 +44,12 @@ function App() {
         syncedProfile = await syncProfileFromMetadata(userId, data, metadata);
       } catch (syncError) {
         console.warn("Unable to sync profile from metadata:", syncError.message);
+      }
+
+      try {
+        await syncOrganizationFromProfile(userId, syncedProfile, metadata);
+      } catch (syncError) {
+        console.warn("Unable to sync organization profile:", syncError.message);
       }
 
       const roleFromMetadata = metadata.role?.toString() || "";
@@ -197,8 +209,13 @@ function App() {
     }
   };
 
-  const handleOpenOrganization = (orgId) => {
-    navigate(`/organizations/${orgId}`);
+  const handleOpenOrganization = async (profileId) => {
+    try {
+      const organization = await fetchOrganizationByProfileId(profileId);
+      navigate(`/organizations/${organization.id}`);
+    } catch (error) {
+      setApiError(error.message || "Unable to open that organization profile.");
+    }
   };
 
   return (

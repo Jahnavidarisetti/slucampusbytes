@@ -3,6 +3,7 @@ import {
   fetchFollowerCount,
   fetchIsFollowing,
   fetchOrganizationById,
+  fetchOrganizationByProfileId,
   fetchOrganizations,
 } from "../src/api/organizations";
 import { supabase } from "../src/supabaseClient";
@@ -13,7 +14,7 @@ vi.mock("../src/supabaseClient", () => ({
   },
 }));
 
-function buildProfilesSelect(response, recorder = () => {}) {
+function buildOrganizationsSelect(response, recorder = () => {}) {
   return {
     select(selection) {
       recorder(selection);
@@ -73,31 +74,24 @@ beforeEach(() => {
 });
 
 describe("Organization lookup", () => {
-  it("returns only profiles with the Organization role", async () => {
+  it("returns organizations sorted by name", async () => {
     supabase.from.mockImplementation((table) => {
-      expect(table).toBe("profiles");
-      return buildProfilesSelect({
+      expect(table).toBe("organizations");
+      return buildOrganizationsSelect({
         data: [
           {
-            id: "org-2",
+            id: "organization-2",
+            profile_id: "profile-2",
             username: "robotics",
-            full_name: "Robotics Club",
-            email: "robotics@slu.edu",
-            role: "Organization",
+            name: "Robotics Club",
+            description: "Build bots",
           },
           {
-            id: "student-1",
-            username: "alex",
-            full_name: "Alex Student",
-            email: "alex@slu.edu",
-            role: "Student",
-          },
-          {
-            id: "org-1",
+            id: "organization-1",
+            profile_id: "profile-1",
             username: "acm",
-            full_name: "ACM",
-            email: "acm@slu.edu",
-            role: "Organization",
+            name: "ACM",
+            description: "CS chapter",
           },
         ],
         error: null,
@@ -106,26 +100,46 @@ describe("Organization lookup", () => {
 
     const results = await fetchOrganizations();
 
-    expect(results.map((item) => item.id)).toEqual(["org-1", "org-2"]);
+    expect(results.map((item) => item.id)).toEqual([
+      "organization-1",
+      "organization-2",
+    ]);
   });
 
-  it("loads an organization by id and rejects non-organization profiles", async () => {
+  it("loads an organization by id", async () => {
     supabase.from.mockImplementation(() =>
-      buildProfilesSelect({
+      buildOrganizationsSelect({
         data: {
-          id: "student-1",
-          username: "alex",
-          full_name: "Alex Student",
-          email: "alex@slu.edu",
-          role: "Student",
+          id: "organization-1",
+          profile_id: "profile-1",
+          username: "acm",
+          name: "ACM",
+          description: "CS chapter",
         },
         error: null,
       })
     );
 
-    await expect(fetchOrganizationById("student-1")).rejects.toThrow(
-      /Organization not found/i
+    const result = await fetchOrganizationById("organization-1");
+    expect(result.profile_id).toBe("profile-1");
+  });
+
+  it("loads an organization by owner profile id", async () => {
+    supabase.from.mockImplementation(() =>
+      buildOrganizationsSelect({
+        data: {
+          id: "organization-2",
+          profile_id: "profile-2",
+          username: "robotics",
+          name: "Robotics Club",
+          description: "Build bots",
+        },
+        error: null,
+      })
     );
+
+    const result = await fetchOrganizationByProfileId("profile-2");
+    expect(result.id).toBe("organization-2");
   });
 });
 

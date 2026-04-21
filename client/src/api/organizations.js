@@ -1,46 +1,40 @@
 import { supabase } from "../supabaseClient";
 import { normalizePost } from "../lib/postUtils";
 
-const ORGANIZATION_PROFILE_FIELDS = [
+const ORGANIZATION_FIELDS = [
   "id",
+  "profile_id",
   "username",
-  "full_name",
-  "email",
-  "avatar_url",
-  "organization_description",
-  "role",
+  "name",
+  "description",
+  "logo_url",
+  "created_at",
 ].join(", ");
-
-function isOrganizationProfile(profile) {
-  const normalizedRole = String(profile?.role || "").trim().toLowerCase();
-  return normalizedRole === "organization";
-}
 
 function sortOrganizations(organizations) {
   return [...organizations].sort((left, right) => {
-    const leftName = (left.username || left.full_name || left.email || "").toLowerCase();
-    const rightName = (right.username || right.full_name || right.email || "").toLowerCase();
+    const leftName = (left.name || left.username || "").toLowerCase();
+    const rightName = (right.name || right.username || "").toLowerCase();
     return leftName.localeCompare(rightName);
   });
 }
 
 export async function fetchOrganizations() {
   const { data, error } = await supabase
-    .from("profiles")
-    .select(ORGANIZATION_PROFILE_FIELDS)
-    .eq("role", "Organization");
+    .from("organizations")
+    .select(ORGANIZATION_FIELDS);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return sortOrganizations((data ?? []).filter(isOrganizationProfile));
+  return sortOrganizations(data ?? []);
 }
 
 export async function fetchOrganizationById(orgId) {
   const { data, error } = await supabase
-    .from("profiles")
-    .select(ORGANIZATION_PROFILE_FIELDS)
+    .from("organizations")
+    .select(ORGANIZATION_FIELDS)
     .eq("id", orgId)
     .maybeSingle();
 
@@ -48,7 +42,25 @@ export async function fetchOrganizationById(orgId) {
     throw new Error(error.message);
   }
 
-  if (!data || !isOrganizationProfile(data)) {
+  if (!data) {
+    throw new Error("Organization not found.");
+  }
+
+  return data;
+}
+
+export async function fetchOrganizationByProfileId(profileId) {
+  const { data, error } = await supabase
+    .from("organizations")
+    .select(ORGANIZATION_FIELDS)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
     throw new Error("Organization not found.");
   }
 
@@ -109,27 +121,27 @@ export async function unfollowOrganization(userId, orgId) {
   }
 }
 
-export async function fetchOrganizationPosts(orgId, organization) {
+export async function fetchOrganizationPosts(organization) {
   const { data, error } = await supabase
     .from("posts")
     .select("id, user_id, content, created_at, likes, comments")
-    .eq("user_id", orgId)
+    .eq("user_id", organization.profile_id)
     .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const organizationName =
-    organization?.username || organization?.full_name || "Organization";
+  const organizationName = organization?.name || organization?.username || "Organization";
 
   return (data ?? []).map((post) =>
     normalizePost({
       ...post,
       author: organizationName,
-      avatarUrl: organization?.avatar_url ?? null,
-      role: organization?.role ?? "Organization",
-      organizationDescription: organization?.organization_description ?? null,
+      avatarUrl: organization?.logo_url ?? null,
+      role: "Organization",
+      organizationId: organization.id,
+      organizationDescription: organization?.description ?? null,
     })
   );
 }

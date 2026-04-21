@@ -96,6 +96,26 @@ export const updateProfile = async (userId, payload) => {
   }
 };
 
+export const upsertOrganization = async (profileId, payload) => {
+  const { data, error } = await supabase
+    .from("organizations")
+    .upsert(
+      {
+        profile_id: profileId,
+        ...payload,
+      },
+      { onConflict: "profile_id" }
+    )
+    .select("id, profile_id, username, name, description, logo_url")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Organization profile sync failed. Please try again after login.");
+  }
+
+  return data;
+};
+
 function trimMetadataValue(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -118,10 +138,6 @@ function buildProfileSyncPayload(profile = {}, metadata = {}) {
 
   if (role && (!profile.role || profile.role.toLowerCase() === "user")) {
     payload.role = role;
-  }
-
-  if (description && !profile.organization_description) {
-    payload.organization_description = description;
   }
 
   if (avatarUrl && !profile.avatar_url) {
@@ -150,4 +166,44 @@ export const syncProfileFromMetadata = async (userId, profile = {}, metadata = {
   }
 
   return data ?? { ...profile, ...payload };
+};
+
+function buildOrganizationSyncPayload(profile = {}, metadata = {}) {
+  const role = trimMetadataValue(metadata.role) || trimMetadataValue(profile.role);
+
+  if (role !== "Organization") {
+    return null;
+  }
+
+  const username = trimMetadataValue(metadata.username) || trimMetadataValue(profile.username);
+  const name = trimMetadataValue(metadata.full_name) || trimMetadataValue(profile.full_name);
+  const description =
+    trimMetadataValue(metadata.organization_description) ||
+    trimMetadataValue(profile.organization_description);
+  const logoUrl = trimMetadataValue(metadata.avatar_url) || trimMetadataValue(profile.avatar_url);
+
+  if (!username || !name) {
+    return null;
+  }
+
+  return {
+    username,
+    name,
+    description: description || null,
+    logo_url: logoUrl || null,
+  };
+}
+
+export const syncOrganizationFromProfile = async (
+  profileId,
+  profile = {},
+  metadata = {}
+) => {
+  const payload = buildOrganizationSyncPayload(profile, metadata);
+
+  if (!payload) {
+    return null;
+  }
+
+  return upsertOrganization(profileId, payload);
 };

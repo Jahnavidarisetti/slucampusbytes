@@ -10,6 +10,7 @@ export function normalizePost(post) {
   return {
     id: post.id,
     userId: post.userId ?? post.user_id ?? null,
+    organizationId: post.organizationId ?? post.organization_id ?? null,
     club_name: post.club_name ?? post.author ?? "CampusConnect",
     avatarUrl: post.avatarUrl ?? post.avatar_url ?? null,
     role: post.role ?? null,

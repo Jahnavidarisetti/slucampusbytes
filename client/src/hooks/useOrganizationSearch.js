@@ -65,12 +65,12 @@ export function useOrganizationSearch() {
     trimmed.length === 0
       ? []
       : allOrgs.filter((org) => {
-          const name = (org.username || org.full_name || org.email || "").toLowerCase();
-          const email = (org.email || "").toLowerCase();
-          const desc = (org.organization_description || "").toLowerCase();
+          const name = (org.name || org.username || "").toLowerCase();
+          const username = (org.username || "").toLowerCase();
+          const desc = (org.description || "").toLowerCase();
           return (
             name.includes(trimmed) ||
-            email.includes(trimmed) ||
+            username.includes(trimmed) ||
             desc.includes(trimmed)
           );
         });

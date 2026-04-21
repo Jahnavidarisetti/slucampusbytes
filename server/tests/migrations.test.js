@@ -52,6 +52,21 @@ test('organization followers migration creates mapping table with constraints an
   assert.match(sql, /enable row level security/i);
 });
 
+test('organizations migration creates parent table and remaps follower relationships', () => {
+  const sql = readMigration('20260421110000_create_organizations_table.sql');
+
+  assert.match(sql, /create table if not exists public\.organizations/i);
+  assert.match(sql, /profile_id uuid not null unique references public\.profiles\(id\) on delete cascade/i);
+  assert.match(sql, /username text not null unique/i);
+  assert.match(sql, /name text not null/i);
+  assert.match(sql, /insert into public\.organizations/i);
+  assert.match(sql, /create table if not exists public\.organization_followers_v2/i);
+  assert.match(sql, /references public\.organizations\(id\) on delete cascade/i);
+  assert.match(sql, /join public\.organizations organizations/i);
+  assert.match(sql, /rename to organization_followers/i);
+  assert.match(sql, /create policy "Organizations are viewable by everyone"/i);
+});
+
 async function run() {
   let failures = 0;
 

@@ -134,19 +134,19 @@ export default function OrgSearchBar() {
                     className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
                   >
                     <AvatarBadge
-                      src={org.avatar_url}
-                      label={org.username || org.full_name || "Organization"}
+                      src={org.logo_url}
+                      label={org.name || org.username || "Organization"}
                       size="sm"
                       className="flex-shrink-0"
                     />
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-800">
-                        {org.username || org.full_name || "Organization"}
+                        {org.name || org.username || "Organization"}
                       </p>
-                      {org.organization_description && (
+                      {org.description && (
                         <p className="truncate text-xs text-slate-500">
-                          {org.organization_description}
+                          {org.description}
                         </p>
                       )}
                     </div>

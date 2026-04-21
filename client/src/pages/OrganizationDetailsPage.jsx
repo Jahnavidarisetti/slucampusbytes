@@ -60,7 +60,7 @@ export default function OrganizationDetailsPage() {
         const [followers, following, orgPosts] = await Promise.all([
           fetchFollowerCount(orgId),
           fetchIsFollowing(currentUserId, orgId),
-          fetchOrganizationPosts(orgId, org),
+          fetchOrganizationPosts(org),
         ]);
 
         if (!isMounted) {
@@ -106,7 +106,7 @@ export default function OrganizationDetailsPage() {
   const canFollow =
     Boolean(sessionUserId) &&
     Boolean(organization) &&
-    sessionUserId !== organization.id;
+    sessionUserId !== organization.profile_id;
 
   const handleToggleFollow = async () => {
     if (!canFollow) {
@@ -228,16 +228,16 @@ export default function OrganizationDetailsPage() {
             <section className="rounded-[1.75rem] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(241,245,249,0.96))] p-6 shadow-sm">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                 <AvatarBadge
-                  src={organization?.avatar_url}
-                  label={organization?.username || organization?.full_name || "Organization"}
+                  src={organization?.logo_url}
+                  label={organization?.name || organization?.username || "Organization"}
                   size="xl"
                 />
 
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <h1 className="text-3xl font-semibold text-slate-900">
-                      {organization?.username ||
-                        organization?.full_name ||
+                      {organization?.name ||
+                        organization?.username ||
                         "Organization"}
                     </h1>
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
@@ -246,7 +246,7 @@ export default function OrganizationDetailsPage() {
                   </div>
 
                   <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-                    {organization?.organization_description ||
+                    {organization?.description ||
                       "This organization has not added a description yet."}
                   </p>
 

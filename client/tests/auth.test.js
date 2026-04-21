@@ -4,7 +4,9 @@ import {
   isSluEmail,
   normalizeEmail,
   resolveEmailFromIdentifier,
+  syncOrganizationFromProfile,
   syncProfileFromMetadata,
+  upsertOrganization,
   validatePassword,
   validateUsername,
 } from "../src/lib/supabaseAuth";
@@ -38,6 +40,19 @@ function buildProfileUpdate(response, recorder) {
           select: () => ({
             maybeSingle: () => Promise.resolve(response),
           }),
+        }),
+      };
+    },
+  };
+}
+
+function buildOrganizationUpsert(response, recorder) {
+  return {
+    upsert(payload) {
+      recorder(payload);
+      return {
+        select: () => ({
+          maybeSingle: () => Promise.resolve(response),
         }),
       };
     },
@@ -143,7 +158,7 @@ describe("Profile sync from auth metadata", () => {
             role: "Organization",
             avatar_url: null,
             full_name: "SLU Computer Society",
-            organization_description: "Campus builders",
+            organization_description: null,
           },
           error: null,
         },
@@ -161,14 +176,12 @@ describe("Profile sync from auth metadata", () => {
         role: "user",
         username: null,
         full_name: null,
-        organization_description: null,
         avatar_url: null,
       },
       {
         role: "Organization",
         username: "slucompsoc",
         full_name: "SLU Computer Society",
-        organization_description: "Campus builders",
       }
     );
 
@@ -176,7 +189,6 @@ describe("Profile sync from auth metadata", () => {
       role: "Organization",
       username: "slucompsoc",
       full_name: "SLU Computer Society",
-      organization_description: "Campus builders",
     });
     expect(result.role).toBe("Organization");
     expect(result.username).toBe("slucompsoc");
@@ -189,7 +201,6 @@ describe("Profile sync from auth metadata", () => {
       role: "Organization",
       username: "org2",
       full_name: "Org Two",
-      organization_description: "Already synced",
       avatar_url: "https://cdn.example.com/org2.png",
     };
 
@@ -197,11 +208,92 @@ describe("Profile sync from auth metadata", () => {
       role: "Organization",
       username: "org2",
       full_name: "Org Two",
-      organization_description: "Already synced",
       avatar_url: "https://cdn.example.com/org2.png",
     });
 
     expect(supabase.from).not.toHaveBeenCalled();
     expect(result).toEqual(profile);
+  });
+});
+
+describe("Organization record sync", () => {
+  it("upserts organization rows linked to profile ids", async () => {
+    let payload = null;
+
+    supabase.from.mockImplementation((table) => {
+      expect(table).toBe("organizations");
+      return buildOrganizationUpsert(
+        {
+          data: {
+            id: "organization-1",
+            profile_id: "org-profile-1",
+            username: "slucompsoc",
+            name: "SLU Computer Society",
+            description: "Campus builders",
+            logo_url: "https://cdn.example.com/logo.png",
+          },
+          error: null,
+        },
+        (nextPayload) => {
+          payload = nextPayload;
+        }
+      );
+    });
+
+    const result = await upsertOrganization("org-profile-1", {
+      username: "slucompsoc",
+      name: "SLU Computer Society",
+      description: "Campus builders",
+      logo_url: "https://cdn.example.com/logo.png",
+    });
+
+    expect(payload).toEqual({
+      profile_id: "org-profile-1",
+      username: "slucompsoc",
+      name: "SLU Computer Society",
+      description: "Campus builders",
+      logo_url: "https://cdn.example.com/logo.png",
+    });
+    expect(result.id).toBe("organization-1");
+  });
+
+  it("creates organization sync payloads from profile and auth metadata", async () => {
+    supabase.from.mockImplementation((table) => {
+      expect(table).toBe("organizations");
+      return buildOrganizationUpsert(
+        {
+          data: {
+            id: "organization-2",
+            profile_id: "org-profile-2",
+            username: "sluacm",
+            name: "SLU ACM",
+            description: "Engineering events",
+            logo_url: null,
+          },
+          error: null,
+        },
+        () => {}
+      );
+    });
+
+    const result = await syncOrganizationFromProfile(
+      "org-profile-2",
+      {
+        role: "Organization",
+        username: "sluacm",
+        full_name: "SLU ACM",
+      },
+      {
+        role: "Organization",
+        organization_description: "Engineering events",
+      }
+    );
+
+    expect(result).toMatchObject({
+      id: "organization-2",
+      profile_id: "org-profile-2",
+      username: "sluacm",
+      name: "SLU ACM",
+    });
   });
 });
