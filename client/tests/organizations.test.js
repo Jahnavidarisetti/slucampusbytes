@@ -106,6 +106,18 @@ describe("Organization lookup", () => {
     ]);
   });
 
+  it("returns an empty list when Supabase returns null data", async () => {
+    supabase.from.mockImplementation(() =>
+      buildOrganizationsSelect({
+        data: null,
+        error: null,
+      })
+    );
+
+    const results = await fetchOrganizations();
+    expect(results).toEqual([]);
+  });
+
   it("loads an organization by id", async () => {
     supabase.from.mockImplementation(() =>
       buildOrganizationsSelect({
@@ -122,6 +134,19 @@ describe("Organization lookup", () => {
 
     const result = await fetchOrganizationById("organization-1");
     expect(result.profile_id).toBe("profile-1");
+  });
+
+  it("throws when an organization id lookup returns null", async () => {
+    supabase.from.mockImplementation(() =>
+      buildOrganizationsSelect({
+        data: null,
+        error: null,
+      })
+    );
+
+    await expect(fetchOrganizationById("missing-org")).rejects.toThrow(
+      /Organization not found/i
+    );
   });
 
   it("loads an organization by owner profile id", async () => {
@@ -165,5 +190,11 @@ describe("Organization followers", () => {
 
     const follows = await fetchIsFollowing("student-1", "org-1");
     expect(follows).toBe(true);
+  });
+
+  it("returns false immediately when there is no signed-in user", async () => {
+    const follows = await fetchIsFollowing(null, "org-1");
+    expect(follows).toBe(false);
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });

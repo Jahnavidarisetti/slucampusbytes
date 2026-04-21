@@ -296,4 +296,21 @@ describe("Organization record sync", () => {
       name: "SLU ACM",
     });
   });
+
+  it("skips organization sync for non-organization profiles", async () => {
+    const result = await syncOrganizationFromProfile(
+      "student-profile-1",
+      {
+        role: "Student",
+        username: "alex",
+        full_name: "Alex Student",
+      },
+      {
+        role: "Student",
+      }
+    );
+
+    expect(result).toBeNull();
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
 });
