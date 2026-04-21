@@ -1,22 +1,50 @@
-function PostCard({ post, onLike, onToggleComments, onAddComment }) {
+import AvatarBadge from "./AvatarBadge";
+
+function formatPostDate(createdAt) {
+  if (!createdAt) return "Campus update";
+
+  const parsed = new Date(createdAt);
+  if (Number.isNaN(parsed.getTime())) return "Campus update";
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function PostCard({
+  post,
+  onLike,
+  onToggleComments,
+  onAddComment,
+  onOpenProfile,
+}) {
+  const canOpenProfile = typeof onOpenProfile === "function" && post.userId;
+
   return (
     <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-      
-      { }
       <div className="flex items-center gap-3 mb-3">
-        <div className="h-10 w-10 rounded-full bg-slate-300 flex items-center justify-center text-sm font-semibold text-slate-700">
-          {post.club_name.charAt(0)}
-        </div>
+        <AvatarBadge src={post.avatarUrl} label={post.club_name} />
         <div>
-          <h3 className="font-semibold text-slate-800">{post.club_name}</h3>
-          <p className="text-xs text-slate-500">Campus Event</p>
+          {canOpenProfile ? (
+            <button
+              type="button"
+              onClick={() => onOpenProfile(post.userId)}
+              className="font-semibold text-slate-800 transition hover:text-blue-600"
+            >
+              {post.club_name}
+            </button>
+          ) : (
+            <h3 className="font-semibold text-slate-800">{post.club_name}</h3>
+          )}
+          <p className="text-xs text-slate-500">{formatPostDate(post.createdAt)}</p>
         </div>
       </div>
 
-      { }
       <p className="text-slate-700 mb-3">{post.content}</p>
 
-      { }
       {post.image && (
         <img
           src={post.image}
@@ -25,7 +53,6 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         />
       )}
 
-      { }
       <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
         <button
           onClick={() => onLike(post.id)}
@@ -42,11 +69,8 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
         </button>
       </div>
 
-      { }
       {post.showComments && (
         <div className="mt-4 border-t border-slate-100 pt-4">
-          
-          { }
           <div className="space-y-3 mb-4">
             {post.comments.length > 0 ? (
               post.comments.map((comment) => (
@@ -62,7 +86,6 @@ function PostCard({ post, onLike, onToggleComments, onAddComment }) {
             )}
           </div>
 
-          { }
           <form
             onSubmit={(e) => {
               e.preventDefault();
