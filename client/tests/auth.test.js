@@ -1,40 +1,48 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkUsernameAvailable,
   isSluEmail,
   normalizeEmail,
   resolveEmailFromIdentifier,
+  syncProfileFromMetadata,
   validatePassword,
   validateUsername,
 } from "../src/lib/supabaseAuth";
 import { supabase } from "../src/supabaseClient";
 
-vi.mock("../../client/src/supabaseClient", () => {
-  return {
-    supabase: {
+vi.mock("../src/supabaseClient", () => ({
+  supabase: {
+    from: vi.fn(),
+    storage: {
       from: vi.fn(),
-      storage: {
-        from: vi.fn(),
-      },
+    },
+  },
+}));
+
+function buildProfilesLookup(response) {
+  return {
+    select: () => ({
+      eq: () => ({
+        maybeSingle: () => Promise.resolve(response),
+      }),
+    }),
+  };
+}
+
+function buildProfileUpdate(response, recorder) {
+  return {
+    update(payload) {
+      recorder(payload);
+      return {
+        eq: (_column, _value) => ({
+          select: () => ({
+            maybeSingle: () => Promise.resolve(response),
+          }),
+        }),
+      };
     },
   };
-});
-
-const buildProfilesLookup = (response) => ({
-  select: () => ({
-    eq: () => ({
-      maybeSingle: () => Promise.resolve(response),
-    }),
-  }),
-});
-
-const buildProfilesIdLookup = (response) => ({
-  select: () => ({
-    eq: () => ({
-      maybeSingle: () => Promise.resolve(response),
-    }),
-  }),
-});
+}
 
 beforeEach(() => {
   supabase.from.mockReset();
@@ -103,7 +111,7 @@ describe("Username + password validation", () => {
 
   it("reports username availability from profiles table", async () => {
     supabase.from.mockImplementation(() =>
-      buildProfilesIdLookup({ data: null, error: null })
+      buildProfilesLookup({ data: null, error: null })
     );
 
     const available = await checkUsernameAvailable("unique_user");
@@ -112,10 +120,88 @@ describe("Username + password validation", () => {
 
   it("detects when username is taken", async () => {
     supabase.from.mockImplementation(() =>
-      buildProfilesIdLookup({ data: { id: "123" }, error: null })
+      buildProfilesLookup({ data: { id: "123" }, error: null })
     );
 
     const available = await checkUsernameAvailable("taken_user");
     expect(available).toBe(false);
+  });
+});
+
+describe("Profile sync from auth metadata", () => {
+  it("updates default user profiles with organization metadata", async () => {
+    let payload = null;
+
+    supabase.from.mockImplementation((table) => {
+      expect(table).toBe("profiles");
+      return buildProfileUpdate(
+        {
+          data: {
+            id: "org-1",
+            username: "slucompsoc",
+            email: "org@slu.edu",
+            role: "Organization",
+            avatar_url: null,
+            full_name: "SLU Computer Society",
+            organization_description: "Campus builders",
+          },
+          error: null,
+        },
+        (nextPayload) => {
+          payload = nextPayload;
+        }
+      );
+    });
+
+    const result = await syncProfileFromMetadata(
+      "org-1",
+      {
+        id: "org-1",
+        email: "org@slu.edu",
+        role: "user",
+        username: null,
+        full_name: null,
+        organization_description: null,
+        avatar_url: null,
+      },
+      {
+        role: "Organization",
+        username: "slucompsoc",
+        full_name: "SLU Computer Society",
+        organization_description: "Campus builders",
+      }
+    );
+
+    expect(payload).toEqual({
+      role: "Organization",
+      username: "slucompsoc",
+      full_name: "SLU Computer Society",
+      organization_description: "Campus builders",
+    });
+    expect(result.role).toBe("Organization");
+    expect(result.username).toBe("slucompsoc");
+  });
+
+  it("does not write when the profile is already complete", async () => {
+    const profile = {
+      id: "org-2",
+      email: "org2@slu.edu",
+      role: "Organization",
+      username: "org2",
+      full_name: "Org Two",
+      organization_description: "Already synced",
+      avatar_url: "https://cdn.example.com/org2.png",
+    };
+
+    const result = await syncProfileFromMetadata("org-2", profile, {
+      role: "Organization",
+      username: "org2",
+      full_name: "Org Two",
+      organization_description: "Already synced",
+      avatar_url: "https://cdn.example.com/org2.png",
+    });
+
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(result).toEqual(profile);
   });
 });
