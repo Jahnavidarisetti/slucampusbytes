@@ -95,3 +95,59 @@ export const updateProfile = async (userId, payload) => {
     throw new Error("Profile update failed. Please try again after login.");
   }
 };
+
+function trimMetadataValue(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildProfileSyncPayload(profile = {}, metadata = {}) {
+  const payload = {};
+  const username = trimMetadataValue(metadata.username);
+  const fullName = trimMetadataValue(metadata.full_name);
+  const role = trimMetadataValue(metadata.role);
+  const description = trimMetadataValue(metadata.organization_description);
+  const avatarUrl = trimMetadataValue(metadata.avatar_url);
+
+  if (username && !profile.username) {
+    payload.username = username;
+  }
+
+  if (fullName && !profile.full_name) {
+    payload.full_name = fullName;
+  }
+
+  if (role && (!profile.role || profile.role.toLowerCase() === "user")) {
+    payload.role = role;
+  }
+
+  if (description && !profile.organization_description) {
+    payload.organization_description = description;
+  }
+
+  if (avatarUrl && !profile.avatar_url) {
+    payload.avatar_url = avatarUrl;
+  }
+
+  return payload;
+}
+
+export const syncProfileFromMetadata = async (userId, profile = {}, metadata = {}) => {
+  const payload = buildProfileSyncPayload(profile, metadata);
+
+  if (Object.keys(payload).length === 0) {
+    return profile;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", userId)
+    .select("id, username, email, role, avatar_url, full_name, organization_description")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Profile sync failed. Please try signing in again.");
+  }
+
+  return data ?? { ...profile, ...payload };
+};
