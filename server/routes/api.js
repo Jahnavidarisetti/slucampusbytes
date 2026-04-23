@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabase, ensureDefaultUserId } = require('../config/supabaseClient');
+const {
+  isValidImageUrl,
+  validateCreatePostPayload,
+} = require('../utils/postValidation');
 
 // Test GET route
 router.get('/test', (req, res) => {
@@ -258,27 +262,24 @@ router.post('/posts', async (req, res) => {
       description,
       image_url,
     } = req.body || {};
-
-    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
-    const normalizedDescription =
-      typeof description === 'string' && description.trim()
-        ? description.trim()
-        : typeof content === 'string'
-          ? content.trim()
-          : '';
-
-    if (!normalizedDescription) {
-      return res.status(400).json({ ok: false, error: 'Post description/content is required.' });
+    const payloadValidation = validateCreatePostPayload({
+      title,
+      description,
+      content,
+      imageUrl: image_url,
+    });
+    if (payloadValidation.error) {
+      return res.status(400).json({ ok: false, error: payloadValidation.error });
     }
 
     const resolvedUserId = user_id || (await ensureDefaultUserId());
 
     const insertBody = buildInsertPayload({
       userId: resolvedUserId,
-      content: normalizedDescription,
-      title: normalizedTitle,
-      description: normalizedDescription,
-      imageUrl: typeof image_url === 'string' && image_url.trim() ? image_url.trim() : null,
+      content: payloadValidation.normalizedDescription,
+      title: payloadValidation.normalizedTitle,
+      description: payloadValidation.normalizedDescription,
+      imageUrl: payloadValidation.normalizedImageUrl,
     });
 
     const { data, error } = await insertPostWithFallback(insertBody);
@@ -298,7 +299,7 @@ router.patch('/posts/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = {};
-    const { likes, comments, liked_by, like_user_id } = req.body;
+    const { likes, comments, liked_by, like_user_id, image_url } = req.body;
 
     if (likes !== undefined) {
       if (typeof likes !== 'number' || likes < 0) {
@@ -312,6 +313,16 @@ router.patch('/posts/:id', async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Comments must be an array.' });
       }
       updates.comments = comments;
+    }
+
+    if (image_url !== undefined) {
+      if (!isValidImageUrl(image_url)) {
+        return res.status(400).json({ ok: false, error: 'image_url must be a valid HTTP(S) URL.' });
+      }
+      updates.image_url =
+        typeof image_url === 'string' && image_url.trim()
+          ? image_url.trim()
+          : null;
     }
 
     if (liked_by !== undefined) {
@@ -378,10 +389,14 @@ router.patch('/posts/:id', async (req, res) => {
       .single();
 
     if (error && schemaCompatibilityError(error)) {
-      if (updates.comments !== undefined || updates.liked_by !== undefined) {
+      if (
+        updates.comments !== undefined ||
+        updates.liked_by !== undefined ||
+        updates.image_url !== undefined
+      ) {
         return res.status(500).json({
           ok: false,
-          error: 'Current database schema does not support comments/per-user likes. Please add the needed columns or rerun the latest migration.',
+          error: 'Current database schema does not support comments/image/per-user likes. Please add the needed columns or rerun the latest migration.',
         });
       }
 

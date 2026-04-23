@@ -10,6 +10,16 @@ import {
   syncOrganizationFromProfile,
   syncProfileFromMetadata,
 } from "./lib/supabaseAuth";
+import {
+  ACCEPTED_IMAGE_MIME_TYPES,
+  DESCRIPTION_MAX_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
+  TITLE_MAX_LENGTH,
+  isNetworkFetchError,
+  isSchemaCompatibilityError,
+  isValidImageFile,
+  validateComposerInput,
+} from "./lib/postComposerUtils";
 
 const POST_CONTENT_PREFIX = "CB_POST_V1::";
 
@@ -55,6 +65,12 @@ function mapPostFromApi(post) {
   const parsedLegacy = parsePostContent(post.content);
   return {
     id: post.id,
+    userId: post.user_id ?? post.userId ?? null,
+    role: post.role ?? null,
+    avatarUrl:
+      (typeof post.avatar_url === "string" && post.avatar_url.trim()) || null,
+    club_name:
+      (typeof post.club_name === "string" && post.club_name.trim()) || null,
     organization_name:
       (typeof post.organization_name === "string" && post.organization_name.trim()) ||
       (typeof embeddedProfile?.full_name === "string" &&
@@ -83,25 +99,6 @@ function mapPostFromApi(post) {
     created_at: post.created_at || post.createdAt || null,
     showComments: false,
   };
-}
-
-function isSchemaCompatibilityError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return (
-    (message.includes("column") && message.includes("does not exist")) ||
-    message.includes("could not find a relationship") ||
-    message.includes("schema cache") ||
-    message.includes("is not an embedded resource in this request")
-  );
-}
-
-function isNetworkFetchError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return (
-    message.includes("failed to fetch") ||
-    message.includes("networkerror") ||
-    message.includes("network error")
-  );
 }
 
 function mergePersistedPost(previousPost, persistedPost) {
@@ -162,7 +159,9 @@ function App() {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState("");
   const [postDescription, setPostDescription] = useState("");
+  const [postImageFile, setPostImageFile] = useState(null);
   const [postImagePreview, setPostImagePreview] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [session, setSession] = useState(null);
@@ -173,7 +172,7 @@ function App() {
     setIsProfileLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, full_name, email, role, avatar_url")
+      .select("id, username, full_name, email, role, avatar_url, organization_description")
       .eq("id", userId)
       .maybeSingle();
 
@@ -195,7 +194,7 @@ function App() {
       const roleFromMetadata = metadata.role?.toString() || "";
       const usernameFromMetadata = metadata.username?.toString() || "";
       const profileValue = {
-        ...data,
+        ...syncedProfile,
         role:
           syncedProfile.role && syncedProfile.role.toLowerCase() !== "user"
             ? syncedProfile.role
@@ -270,17 +269,17 @@ function App() {
 
         try {
           const selectAttempts = [
-            "id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)",
-            "id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)",
-            "id, content, title, description, image_url, created_at, likes, liked_by, comments",
-            "id, content, title, description, image_url, created_at, likes",
-            "id, content, created_at, likes, liked_by, comments",
-            "id, content, created_at, likes",
-            "id, content, created_at",
-            "id, content, likes, liked_by, comments",
-            "id, content, likes",
-            "id, content, liked_by",
-            "id, content",
+            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)",
+            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)",
+            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
+            "id, user_id, content, title, description, image_url, created_at, likes",
+            "id, user_id, content, created_at, likes, liked_by, comments",
+            "id, user_id, content, created_at, likes",
+            "id, user_id, content, created_at",
+            "id, user_id, content, likes, liked_by, comments",
+            "id, user_id, content, likes",
+            "id, user_id, content, liked_by",
+            "id, user_id, content",
           ];
 
           let postsData = null;
@@ -327,52 +326,78 @@ function App() {
     loadPosts();
   }, []);
 
-  useEffect(() => {
-    if (!isComposerOpen) return undefined;
-
-    const handleEsc = (event) => {
-      if (event.key === "Escape") {
-        setIsComposerOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [isComposerOpen]);
-
   const resetComposer = () => {
+    if (postImagePreview && postImagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(postImagePreview);
+    }
     setPostTitle("");
     setPostDescription("");
+    setPostImageFile(null);
     setPostImagePreview(null);
   };
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
     setApiError(null);
+    setSuccessMessage("");
 
     if (!file) {
+      if (postImagePreview && postImagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(postImagePreview);
+      }
+      setPostImageFile(null);
       setPostImagePreview(null);
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
-      setApiError("Please upload a valid image file.");
+    const validation = isValidImageFile(file);
+    if (!validation.ok) {
+      setApiError(validation.error);
       return;
     }
 
-    const maxSizeInBytes = 2 * 1024 * 1024;
-    if (file.size > maxSizeInBytes) {
-      setApiError("Image is too large. Please upload one under 2MB.");
-      return;
+    if (postImagePreview && postImagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(postImagePreview);
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setPostImagePreview(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    setPostImageFile(file);
+    setPostImagePreview(previewUrl);
+  };
+
+  const uploadPostImageToStorage = async (file, userId) => {
+    if (!file) return null;
+
+    const extFromName = file.name?.split(".").pop()?.toLowerCase() || "jpg";
+    const fallbackExt = file.type.includes("png")
+      ? "png"
+      : file.type.includes("webp")
+        ? "webp"
+        : file.type.includes("gif")
+          ? "gif"
+          : extFromName;
+    const filePath = `${userId}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}.${fallbackExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      throw new Error(`Image upload failed: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
+    if (!data?.publicUrl) {
+      throw new Error("Unable to resolve uploaded image URL.");
+    }
+
+    return data.publicUrl;
   };
 
   const createPostDirectToSupabase = async ({
@@ -387,12 +412,12 @@ function App() {
     };
 
     const selectAttempts = [
-      "id, content, title, description, image_url, created_at, likes, liked_by, comments",
-      "id, content, title, description, image_url, created_at, likes",
-      "id, content, created_at, likes, liked_by, comments",
-      "id, content, created_at, likes",
-      "id, content, created_at, likes, liked_by",
-      "id, content, created_at",
+      "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
+      "id, user_id, content, title, description, image_url, created_at, likes",
+      "id, user_id, content, created_at, likes, liked_by, comments",
+      "id, user_id, content, created_at, likes",
+      "id, user_id, content, created_at, likes, liked_by",
+      "id, user_id, content, created_at",
     ];
 
     const payloads = [
@@ -453,13 +478,13 @@ function App() {
     };
 
     const selectAttempts = [
-      "id, content, title, description, image_url, created_at, likes, liked_by, comments",
-      "id, content, title, description, image_url, created_at, likes, comments",
-      "id, content, created_at, likes, liked_by, comments",
-      "id, content, created_at, likes, comments",
-      "id, content, created_at, likes, liked_by",
-      "id, content, created_at, likes",
-      "id, content, created_at",
+      "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
+      "id, user_id, content, title, description, image_url, created_at, likes, comments",
+      "id, user_id, content, created_at, likes, liked_by, comments",
+      "id, user_id, content, created_at, likes, comments",
+      "id, user_id, content, created_at, likes, liked_by",
+      "id, user_id, content, created_at, likes",
+      "id, user_id, content, created_at",
     ];
 
     const readAttempts = [
@@ -608,9 +633,10 @@ function App() {
     event.preventDefault();
     const title = postTitle.trim();
     const description = postDescription.trim();
+    const validationError = validateComposerInput({ title, description });
 
-    if (!title || !description) {
-      setApiError("Please provide a title and description before posting.");
+    if (validationError) {
+      setApiError(validationError);
       return;
     }
 
@@ -621,13 +647,26 @@ function App() {
 
     setLoadingCreate(true);
     setApiError(null);
+    setSuccessMessage("");
+    let uploadedImageUrl = null;
+
+    try {
+      uploadedImageUrl = await uploadPostImageToStorage(
+        postImageFile,
+        session.user.id
+      );
+    } catch (uploadError) {
+      setApiError(uploadError.message || "Image upload failed.");
+      setLoadingCreate(false);
+      return;
+    }
 
     try {
       const response = await createPost({
         content: description,
         title,
         description,
-        image_url: postImagePreview,
+        image_url: uploadedImageUrl,
         user_id: session.user.id,
       });
       const savedPost = response?.post ?? response;
@@ -644,7 +683,7 @@ function App() {
             ...savedPost,
             title: savedPost.title ?? title,
             description: savedPost.description ?? description,
-            image_url: savedPost.image_url ?? postImagePreview,
+            image_url: savedPost.image_url ?? uploadedImageUrl,
             content: savedPost.content ?? description,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
@@ -653,6 +692,7 @@ function App() {
         ]);
         resetComposer();
         setIsComposerOpen(false);
+        setSuccessMessage("Post created successfully.");
       }
     } catch (err) {
       try {
@@ -660,7 +700,7 @@ function App() {
           userId: session.user.id,
           title,
           description,
-          imageUrl: postImagePreview,
+          imageUrl: uploadedImageUrl,
         });
 
         const organizationName =
@@ -674,7 +714,7 @@ function App() {
             ...savedPost,
             title: savedPost.title ?? title,
             description: savedPost.description ?? description,
-            image_url: savedPost.image_url ?? postImagePreview,
+            image_url: savedPost.image_url ?? uploadedImageUrl,
             content: savedPost.content ?? description,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
@@ -684,6 +724,7 @@ function App() {
         resetComposer();
         setIsComposerOpen(false);
         setApiError(null);
+        setSuccessMessage("Post created successfully.");
       } catch (fallbackError) {
         setApiError(fallbackError.message || err.message);
       }
@@ -828,6 +869,7 @@ function App() {
 
   const openComposer = () => {
     setApiError(null);
+    setSuccessMessage("");
     setIsComposerOpen(true);
   };
 
@@ -845,6 +887,15 @@ function App() {
       setApiError(error.message || "Unable to open that organization profile.");
     }
   };
+
+  const titleLength = postTitle.length;
+  const descriptionLength = postDescription.length;
+  const isComposerSubmitDisabled =
+    loadingCreate ||
+    !postTitle.trim() ||
+    !postDescription.trim() ||
+    titleLength > TITLE_MAX_LENGTH ||
+    descriptionLength > DESCRIPTION_MAX_LENGTH;
 
   return (
     <div className="h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 flex justify-center overflow-hidden">
@@ -919,6 +970,11 @@ function App() {
           {/* Main feed */}
           <main className="col-span-12 lg:col-span-8 flex flex-col min-h-0">
             <div className="rounded-md bg-white/70 border border-slate-200 flex flex-col h-full overflow-hidden min-h-0">
+              {successMessage && (
+                <div className="mx-4 mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  {successMessage}
+                </div>
+              )}
               {apiError && (
                 <div className="mx-4 mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
                   {apiError}
@@ -993,11 +1049,9 @@ function App() {
       {isComposerOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-3 py-6 backdrop-blur-sm sm:px-6"
-          onClick={closeComposer}
         >
           <div
             className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/40 bg-gradient-to-br from-sky-50 via-white to-cyan-50 p-5 shadow-2xl sm:p-6"
-            onClick={(event) => event.stopPropagation()}
           >
             <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-sky-400/20 blur-3xl" />
@@ -1020,10 +1074,18 @@ function App() {
                   id="post-title"
                   type="text"
                   value={postTitle}
-                  onChange={(event) => setPostTitle(event.target.value)}
+                  maxLength={TITLE_MAX_LENGTH}
+                  onChange={(event) => {
+                    setPostTitle(event.target.value);
+                    setApiError(null);
+                    setSuccessMessage("");
+                  }}
                   placeholder="Enter an announcement title"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
                 />
+                <p className="text-xs text-slate-500">
+                  {titleLength}/{TITLE_MAX_LENGTH}
+                </p>
               </div>
 
               <div className="space-y-1">
@@ -1033,10 +1095,13 @@ function App() {
                 <input
                   id="post-image"
                   type="file"
-                  accept="image/*"
+                  accept={ACCEPTED_IMAGE_MIME_TYPES.join(",")}
                   onChange={handleImageChange}
                   className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-sky-700 hover:border-sky-300"
                 />
+                <p className="text-xs text-slate-500">
+                  Accepted: JPG, PNG, WEBP, GIF. Max size: {Math.floor(MAX_IMAGE_SIZE_BYTES / (1024 * 1024))}MB.
+                </p>
                 {postImagePreview && (
                   <img
                     src={postImagePreview}
@@ -1053,10 +1118,18 @@ function App() {
                 <textarea
                   id="post-description"
                   value={postDescription}
-                  onChange={(event) => setPostDescription(event.target.value)}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
+                  onChange={(event) => {
+                    setPostDescription(event.target.value);
+                    setApiError(null);
+                    setSuccessMessage("");
+                  }}
                   placeholder="Write the full post details for students..."
                   className="min-h-[150px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
                 />
+                <p className="text-xs text-slate-500">
+                  {descriptionLength}/{DESCRIPTION_MAX_LENGTH}
+                </p>
               </div>
 
               {apiError && (
@@ -1075,7 +1148,7 @@ function App() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loadingCreate}
+                  disabled={isComposerSubmitDisabled}
                   className="rounded-xl bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingCreate ? "Posting..." : "Send Post"}

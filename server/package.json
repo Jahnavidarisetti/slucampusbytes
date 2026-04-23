@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node tests/posts.test.js"
+    "test": "node tests/posts.test.js && node tests/api.posts.test.js && node tests/api.integration.test.js"
   },
   "keywords": [],
   "author": "",
