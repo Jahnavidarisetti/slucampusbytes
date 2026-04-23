@@ -124,7 +124,9 @@ export async function unfollowOrganization(userId, orgId) {
 export async function fetchOrganizationPosts(organization) {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, user_id, content, created_at, likes, comments")
+    .select(
+      "id, user_id, title, description, image_url, content, created_at, likes, comments"
+    )
     .eq("user_id", organization.profile_id)
     .order("created_at", { ascending: false });
 
@@ -137,6 +139,10 @@ export async function fetchOrganizationPosts(organization) {
   return (data ?? []).map((post) =>
     normalizePost({
       ...post,
+      title: post.title ?? "",
+      content: post.description ?? post.content ?? "",
+      image: post.image_url ?? null,
+      organization_name: organizationName,
       author: organizationName,
       avatarUrl: organization?.logo_url ?? null,
       role: "Organization",
