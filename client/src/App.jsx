@@ -29,17 +29,31 @@ function parsePostContent(content) {
       description: typeof parsed.description === "string" ? parsed.description : "",
       image: typeof parsed.image === "string" ? parsed.image : null,
     };
-  } catch (_error) {
+  } catch {
     return { title: "", description: content, image: null };
   }
 }
 
 function mapPostFromApi(post) {
+  const embeddedProfile = Array.isArray(post.profiles)
+    ? post.profiles[0]
+    : post.profiles;
+  const profileEmail =
+    typeof embeddedProfile?.email === "string"
+      ? embeddedProfile.email.trim().toLowerCase()
+      : "";
+  const emailName = profileEmail ? profileEmail.split("@")[0] : "";
+
   const parsedLegacy = parsePostContent(post.content);
   return {
     id: post.id,
     organization_name:
       (typeof post.organization_name === "string" && post.organization_name.trim()) ||
+      (typeof embeddedProfile?.full_name === "string" &&
+        embeddedProfile.full_name.trim()) ||
+      (typeof embeddedProfile?.username === "string" &&
+        embeddedProfile.username.trim()) ||
+      emailName ||
       (typeof post.club_name === "string" && post.club_name.trim()) ||
       "CampusConnect",
     title:
@@ -56,9 +70,52 @@ function mapPostFromApi(post) {
       parsedLegacy.image ||
       null,
     likes: Number(post.likes ?? 0),
+    liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
     comments: Array.isArray(post.comments) ? post.comments : [],
     created_at: post.created_at || post.createdAt || null,
     showComments: false,
+  };
+}
+
+function isSchemaCompatibilityError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    (message.includes("column") && message.includes("does not exist")) ||
+    message.includes("could not find a relationship") ||
+    message.includes("schema cache") ||
+    message.includes("is not an embedded resource in this request")
+  );
+}
+
+function isNetworkFetchError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("network error")
+  );
+}
+
+function mergePersistedPost(previousPost, persistedPost) {
+  const mapped = mapPostFromApi(persistedPost);
+  const previousOrgName =
+    typeof previousPost?.organization_name === "string"
+      ? previousPost.organization_name.trim()
+      : "";
+  const mappedOrgName =
+    typeof mapped.organization_name === "string"
+      ? mapped.organization_name.trim()
+      : "";
+  const shouldPreservePreviousOrgName =
+    previousOrgName &&
+    (!mappedOrgName || mappedOrgName === "CampusConnect");
+
+  return {
+    ...mapped,
+    organization_name: shouldPreservePreviousOrgName
+      ? previousOrgName
+      : mapped.organization_name,
+    showComments: previousPost?.showComments ?? false,
   };
 }
 
@@ -183,6 +240,60 @@ function App() {
         setPosts(postsPayload.map(mapPostFromApi));
       } catch (err) {
         console.warn("Unable to load posts from API:", err.message);
+
+        try {
+          const selectAttempts = [
+            "id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)",
+            "id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)",
+            "id, content, title, description, image_url, created_at, likes, liked_by, comments",
+            "id, content, title, description, image_url, created_at, likes",
+            "id, content, created_at, likes, liked_by, comments",
+            "id, content, created_at, likes",
+            "id, content, created_at",
+            "id, content, likes, liked_by, comments",
+            "id, content, likes",
+            "id, content, liked_by",
+            "id, content",
+          ];
+
+          let postsData = null;
+          let fallbackError = null;
+
+          for (const selection of selectAttempts) {
+            const orderColumn = selection.includes("created_at")
+              ? "created_at"
+              : "id";
+            const { data, error } = await supabase
+              .from("posts")
+              .select(selection)
+              .order(orderColumn, { ascending: false })
+              .limit(20);
+
+            if (!error) {
+              postsData = data ?? [];
+              break;
+            }
+
+            if (isSchemaCompatibilityError(error)) {
+              fallbackError = error;
+              continue;
+            }
+
+            throw error;
+          }
+
+          if (postsData) {
+            setPosts(postsData.map(mapPostFromApi));
+            setApiError(null);
+          } else if (fallbackError) {
+            throw fallbackError;
+          }
+        } catch (directErr) {
+          setApiError(
+            directErr.message ||
+              "Unable to load posts right now. Please try again in a moment."
+          );
+        }
       }
     };
 
@@ -249,10 +360,11 @@ function App() {
     };
 
     const selectAttempts = [
-      "id, content, title, description, image_url, created_at, likes, comments",
+      "id, content, title, description, image_url, created_at, likes, liked_by, comments",
       "id, content, title, description, image_url, created_at, likes",
-      "id, content, created_at, likes, comments",
+      "id, content, created_at, likes, liked_by, comments",
       "id, content, created_at, likes",
+      "id, content, created_at, likes, liked_by",
       "id, content, created_at",
     ];
 
@@ -264,6 +376,7 @@ function App() {
         description,
         image_url: imageUrl || null,
         likes: 0,
+        liked_by: [],
         comments: [],
       },
       {
@@ -304,6 +417,164 @@ function App() {
     }
 
     throw lastError || new Error("Unable to create post in Supabase.");
+  };
+
+  const updatePostDirectToSupabase = async (postId, updates) => {
+    const isMissingColumnError = (error) => {
+      const message = String(error?.message || "").toLowerCase();
+      return message.includes("column") && message.includes("does not exist");
+    };
+
+    const selectAttempts = [
+      "id, content, title, description, image_url, created_at, likes, liked_by, comments",
+      "id, content, title, description, image_url, created_at, likes, comments",
+      "id, content, created_at, likes, liked_by, comments",
+      "id, content, created_at, likes, comments",
+      "id, content, created_at, likes, liked_by",
+      "id, content, created_at, likes",
+      "id, content, created_at",
+    ];
+
+    const readAttempts = [
+      "id, likes, liked_by",
+      "id, likes",
+      "id",
+    ];
+
+    const payload = {};
+
+    if (updates.comments !== undefined) {
+      if (!Array.isArray(updates.comments)) {
+        throw new Error("Comments must be an array.");
+      }
+      payload.comments = updates.comments;
+    }
+
+    if (updates.likes !== undefined) {
+      if (typeof updates.likes !== "number" || updates.likes < 0) {
+        throw new Error("Likes must be a non-negative number.");
+      }
+      payload.likes = updates.likes;
+    }
+
+    if (updates.liked_by !== undefined) {
+      if (!Array.isArray(updates.liked_by)) {
+        throw new Error("liked_by must be an array.");
+      }
+      const normalized = [
+        ...new Set(
+          updates.liked_by.filter(
+            (entry) => typeof entry === "string" && entry.trim()
+          )
+        ),
+      ];
+      payload.liked_by = normalized;
+      payload.likes = normalized.length;
+    }
+
+    if (updates.like_user_id !== undefined) {
+      if (
+        typeof updates.like_user_id !== "string" ||
+        !updates.like_user_id.trim()
+      ) {
+        throw new Error("like_user_id must be a non-empty string.");
+      }
+
+      let currentData = null;
+      let currentError = null;
+
+      for (const selection of readAttempts) {
+        const { data, error } = await supabase
+          .from("posts")
+          .select(selection)
+          .eq("id", postId)
+          .single();
+
+        if (!error) {
+          currentData = data;
+          break;
+        }
+
+        if (isMissingColumnError(error) || isSchemaCompatibilityError(error)) {
+          currentError = error;
+          continue;
+        }
+
+        throw error;
+      }
+
+      if (!currentData) {
+        throw (
+          currentError || new Error("Unable to read current like state from Supabase.")
+        );
+      }
+
+      const currentLikedBy = Array.isArray(currentData.liked_by)
+        ? currentData.liked_by.filter(
+            (entry) => typeof entry === "string" && entry.trim()
+          )
+        : [];
+      const currentLikes =
+        typeof currentData.likes === "number" &&
+        Number.isFinite(currentData.likes) &&
+        currentData.likes >= 0
+          ? currentData.likes
+          : currentLikedBy.length;
+      const userId = updates.like_user_id.trim();
+      const userHasLiked = currentLikedBy.includes(userId);
+      const nextLikedBy = userHasLiked
+        ? currentLikedBy.filter((entry) => entry !== userId)
+        : [...currentLikedBy, userId];
+      const nextLikes = userHasLiked
+        ? Math.max(currentLikes - 1, 0)
+        : currentLikes + 1;
+
+      payload.liked_by = nextLikedBy;
+      payload.likes = nextLikes;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      throw new Error("No valid fields to update.");
+    }
+
+    const variants = [payload];
+    if (Object.prototype.hasOwnProperty.call(payload, "comments")) {
+      const { comments, ...withoutComments } = payload;
+      if (Object.keys(withoutComments).length > 0) {
+        variants.push(withoutComments);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "liked_by")) {
+      const { liked_by, ...withoutLikedBy } = payload;
+      if (Object.keys(withoutLikedBy).length > 0) {
+        variants.push(withoutLikedBy);
+      }
+    }
+
+    let lastError = null;
+    for (const variant of variants) {
+      for (const selection of selectAttempts) {
+        const { data, error } = await supabase
+          .from("posts")
+          .update(variant)
+          .eq("id", postId)
+          .select(selection)
+          .single();
+
+        if (!error) {
+          return data;
+        }
+
+        if (isMissingColumnError(error) || isSchemaCompatibilityError(error)) {
+          lastError = error;
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError || new Error("Unable to update post in Supabase.");
   };
 
   const handleCreatePost = async (event) => {
@@ -395,19 +666,74 @@ function App() {
   };
 
   const handleLike = async (id) => {
+    if (!session?.user?.id) {
+      setApiError("Please sign in to like posts.");
+      return;
+    }
+
+    const userId = session.user.id;
     const previousPosts = posts;
-    const updatedPosts = posts.map((post) =>
-      post.id === id ? { ...post, likes: post.likes + 1 } : post
-    );
+    const updatedPosts = posts.map((post) => {
+      if (post.id !== id) return post;
+      const likedBy = Array.isArray(post.liked_by) ? post.liked_by : [];
+      const userHasLiked = likedBy.includes(userId);
+      const currentLikes =
+        typeof post.likes === "number" && Number.isFinite(post.likes) && post.likes >= 0
+          ? post.likes
+          : likedBy.length;
+      const nextLikedBy = userHasLiked
+        ? likedBy.filter((entry) => entry !== userId)
+        : [...likedBy, userId];
+      const nextLikes = userHasLiked
+        ? Math.max(currentLikes - 1, 0)
+        : currentLikes + 1;
+
+      return {
+        ...post,
+        liked_by: nextLikedBy,
+        likes: nextLikes,
+      };
+    });
 
     setPosts(updatedPosts);
 
     try {
-      const updatedPost = updatedPosts.find((post) => post.id === id);
-      if (updatedPost) {
-        await updatePost(id, { likes: updatedPost.likes });
+      const saved = await updatePost(id, { like_user_id: userId });
+      if (saved && typeof saved === "object") {
+        setPosts((current) =>
+          current.map((post) =>
+            post.id === id
+              ? mergePersistedPost(post, saved)
+              : post
+          )
+        );
       }
     } catch (err) {
+      if (isNetworkFetchError(err)) {
+        try {
+          const saved = await updatePostDirectToSupabase(id, {
+            like_user_id: userId,
+          });
+          if (saved && typeof saved === "object") {
+            setPosts((current) =>
+              current.map((post) =>
+                post.id === id
+                  ? mergePersistedPost(post, saved)
+                  : post
+              )
+            );
+            setApiError(null);
+            return;
+          }
+        } catch (fallbackError) {
+          console.error("Failed to persist like toggle via Supabase:", fallbackError);
+          setApiError(fallbackError.message || err.message);
+          setPosts(previousPosts);
+          return;
+        }
+      }
+
+      console.error("Failed to persist like toggle:", err);
       setApiError(err.message);
       setPosts(previousPosts);
     }
@@ -436,9 +762,47 @@ function App() {
     try {
       const updatedPost = updatedPosts.find((post) => post.id === postId);
       if (updatedPost) {
-        await updatePost(postId, { comments: updatedPost.comments });
+        const saved = await updatePost(postId, { comments: updatedPost.comments });
+        if (saved && typeof saved === "object") {
+          setPosts((current) =>
+            current.map((post) =>
+              post.id === postId
+                ? mergePersistedPost(post, saved)
+                : post
+            )
+          );
+        }
       }
     } catch (err) {
+      if (isNetworkFetchError(err)) {
+        try {
+          const updatedPost = updatedPosts.find((post) => post.id === postId);
+          if (!updatedPost) {
+            throw new Error("Post not found in local state.");
+          }
+          const saved = await updatePostDirectToSupabase(postId, {
+            comments: updatedPost.comments,
+          });
+          if (saved && typeof saved === "object") {
+            setPosts((current) =>
+              current.map((post) =>
+                post.id === postId
+                  ? mergePersistedPost(post, saved)
+                  : post
+              )
+            );
+            setApiError(null);
+            return;
+          }
+        } catch (fallbackError) {
+          console.error("Failed to persist comment via Supabase:", fallbackError);
+          setApiError(fallbackError.message || err.message);
+          setPosts(previousPosts);
+          return;
+        }
+      }
+
+      console.error("Failed to persist comment:", err);
       setApiError(err.message);
       setPosts(previousPosts);
     }
@@ -520,6 +884,11 @@ function App() {
 
           <main className="col-span-12 lg:col-span-8 flex flex-col min-h-0">
             <div className="rounded-md bg-white/70 border border-slate-200 flex flex-col h-full overflow-hidden min-h-0">
+              {apiError && (
+                <div className="mx-4 mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {apiError}
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {posts.map((post) => (
                   <PostCard

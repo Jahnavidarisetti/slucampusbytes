@@ -32,7 +32,8 @@ router.get('/supabase/health', async (req, res) => {
 });
 
 function normalizePost(post) {
-  const profile = post.profiles && typeof post.profiles === 'object' ? post.profiles : null;
+  const profileSource = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+  const profile = profileSource && typeof profileSource === 'object' ? profileSource : null;
   const profileEmail =
     typeof profile?.email === 'string' ? profile.email.trim().toLowerCase() : '';
   const emailName = profileEmail ? profileEmail.split('@')[0] : '';
@@ -57,44 +58,89 @@ function normalizePost(post) {
     content: typeof post.content === 'string' ? post.content : '',
     created_at: post.created_at,
     likes: Number(post.likes ?? 0),
+    liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
     comments: Array.isArray(post.comments) ? post.comments : [],
   };
 }
 
-function missingColumnError(error) {
+function schemaCompatibilityError(error) {
   const message = String(error?.message || '').toLowerCase();
-  return message.includes('column') && message.includes('does not exist');
+  return (
+    (message.includes('column') && message.includes('does not exist')) ||
+    message.includes('could not find a relationship') ||
+    message.includes('schema cache') ||
+    message.includes('is not an embedded resource in this request')
+  );
 }
 
 async function selectPostsWithFallback({ id = null, limit = null } = {}) {
   const selectAttempts = [
-    'id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)',
-    'id, content, title, description, image_url, created_at, likes, comments, profiles(username, email)',
-    'id, content, title, description, image_url, created_at, likes, comments',
-    'id, content, title, description, image_url, created_at, likes',
-    'id, content, created_at, likes, comments',
-    'id, content, created_at, likes',
-    'id, content, created_at'
+    {
+      selection:
+        'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)',
+      sortBy: 'created_at',
+    },
+    {
+      selection:
+        'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, title, description, image_url, created_at, likes, liked_by, comments',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, title, description, image_url, created_at, likes',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, created_at, likes, comments',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, created_at, likes',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, created_at',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, content, likes, comments',
+      sortBy: 'id',
+    },
+    {
+      selection: 'id, content, likes, liked_by, comments',
+      sortBy: 'id',
+    },
+    {
+      selection: 'id, content, likes',
+      sortBy: 'id',
+    },
+    {
+      selection: 'id, content',
+      sortBy: 'id',
+    },
   ];
 
   let lastError = null;
 
-  for (const selection of selectAttempts) {
-    let query = supabase.from('posts').select(selection);
+  for (const attempt of selectAttempts) {
+    let query = supabase.from('posts').select(attempt.selection);
 
     if (id) {
       query = query.eq('id', id).single();
     } else {
-      query = query.order('created_at', { ascending: false }).limit(limit ?? 20);
+      query = query.order(attempt.sortBy, { ascending: false }).limit(limit ?? 20);
     }
 
     const { data, error } = await query;
 
     if (!error) {
-      return { data, selection };
+      return { data, selection: attempt.selection };
     }
 
-    if (missingColumnError(error)) {
+    if (schemaCompatibilityError(error)) {
       lastError = error;
       continue;
     }
@@ -113,6 +159,7 @@ function buildInsertPayload({ userId, content, title, description, imageUrl }) {
     description,
     image_url: imageUrl,
     likes: 0,
+    liked_by: [],
     comments: [],
   };
 
@@ -129,6 +176,7 @@ function compactInsertPayload(payload, level) {
   }
 
   if (level >= 2) {
+    delete next.liked_by;
     delete next.likes;
   }
 
@@ -143,13 +191,18 @@ function compactInsertPayload(payload, level) {
 
 async function insertPostWithFallback(payload) {
   const selectAttempts = [
-    'id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)',
-    'id, content, title, description, image_url, created_at, likes, comments, profiles(username, email)',
-    'id, content, title, description, image_url, created_at, likes, comments',
+    'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)',
+    'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)',
+    'id, content, title, description, image_url, created_at, likes, liked_by, comments',
     'id, content, title, description, image_url, created_at, likes',
-    'id, content, created_at, likes, comments',
+    'id, content, created_at, likes, liked_by, comments',
     'id, content, created_at, likes',
-    'id, content, created_at'
+    'id, content, created_at, likes, liked_by',
+    'id, content, created_at',
+    'id, content, likes, liked_by, comments',
+    'id, content, likes',
+    'id, content, liked_by',
+    'id, content'
   ];
 
   let lastError = null;
@@ -168,7 +221,7 @@ async function insertPostWithFallback(payload) {
         return { data };
       }
 
-      if (missingColumnError(error)) {
+      if (schemaCompatibilityError(error)) {
         lastError = error;
         continue;
       }
@@ -245,7 +298,7 @@ router.patch('/posts/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = {};
-    const { likes, comments } = req.body;
+    const { likes, comments, liked_by, like_user_id } = req.body;
 
     if (likes !== undefined) {
       if (typeof likes !== 'number' || likes < 0) {
@@ -261,6 +314,58 @@ router.patch('/posts/:id', async (req, res) => {
       updates.comments = comments;
     }
 
+    if (liked_by !== undefined) {
+      if (!Array.isArray(liked_by)) {
+        return res.status(400).json({ ok: false, error: 'liked_by must be an array.' });
+      }
+      const normalized = [...new Set(liked_by.filter((entry) => typeof entry === 'string' && entry.trim()))];
+      updates.liked_by = normalized;
+      updates.likes = normalized.length;
+    }
+
+    if (like_user_id !== undefined) {
+      if (typeof like_user_id !== 'string' || !like_user_id.trim()) {
+        return res.status(400).json({ ok: false, error: 'like_user_id must be a non-empty string.' });
+      }
+
+      const currentPostResult = await selectPostsWithFallback({ id });
+      if (currentPostResult.error) {
+        return res.status(500).json({ ok: false, error: currentPostResult.error.message });
+      }
+
+      const currentPost = currentPostResult.data;
+      if (!currentPost) {
+        return res.status(404).json({ ok: false, error: 'Post not found.' });
+      }
+
+      if (!Array.isArray(currentPost.liked_by)) {
+        return res.status(500).json({
+          ok: false,
+          error:
+            'Current database schema does not support per-user likes. Please add the liked_by column or rerun the latest migration.',
+        });
+      }
+
+      const currentLikedBy = currentPost.liked_by.filter(
+        (entry) => typeof entry === 'string' && entry.trim()
+      );
+      const currentLikes =
+        typeof currentPost.likes === 'number' && Number.isFinite(currentPost.likes) && currentPost.likes >= 0
+          ? currentPost.likes
+          : currentLikedBy.length;
+      const userId = like_user_id.trim();
+      const userHasLiked = currentLikedBy.includes(userId);
+      const nextLikedBy = userHasLiked
+        ? currentLikedBy.filter((entry) => entry !== userId)
+        : [...currentLikedBy, userId];
+      const nextLikes = userHasLiked
+        ? Math.max(currentLikes - 1, 0)
+        : currentLikes + 1;
+
+      updates.liked_by = nextLikedBy;
+      updates.likes = nextLikes;
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ ok: false, error: 'No valid fields to update.' });
     }
@@ -269,14 +374,14 @@ router.patch('/posts/:id', async (req, res) => {
       .from('posts')
       .update(updates)
       .eq('id', id)
-      .select('id, content, title, description, image_url, created_at, likes, comments, profiles(full_name, username, email)')
+      .select('id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)')
       .single();
 
-    if (error && missingColumnError(error)) {
-      if (updates.comments !== undefined) {
+    if (error && schemaCompatibilityError(error)) {
+      if (updates.comments !== undefined || updates.liked_by !== undefined) {
         return res.status(500).json({
           ok: false,
-          error: 'Current database schema does not support post comments. Please add the comments column or rerun the latest migration.',
+          error: 'Current database schema does not support comments/per-user likes. Please add the needed columns or rerun the latest migration.',
         });
       }
 
@@ -284,7 +389,7 @@ router.patch('/posts/:id', async (req, res) => {
         .from('posts')
         .update({ likes: updates.likes })
         .eq('id', id)
-        .select('id, content, created_at, likes, profiles(username, email)')
+        .select('id, content, created_at, likes')
         .single();
 
       data = fallback.data;
