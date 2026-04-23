@@ -4,6 +4,14 @@ const { emitNewPost } = require('../sockets/postHandler');
 
 function authorFromProfile(profile) {
   if (!profile || typeof profile !== 'object') return 'Member';
+  const username = profile.username;
+  if (username && typeof username === 'string') {
+    return username;
+  }
+  const fullName = profile.full_name;
+  if (fullName && typeof fullName === 'string') {
+    return fullName;
+  }
   const email = profile.email;
   if (email && typeof email === 'string') {
     const local = email.split('@')[0];
@@ -44,8 +52,14 @@ function mapRow(row) {
   const profile = row.profiles;
   return {
     id: row.id,
+    userId: row.user_id,
     author: authorFromProfile(profile),
     content: row.content,
+    avatarUrl: profile?.avatar_url ?? null,
+    role: profile?.role ?? null,
+    organizationDescription: profile?.organization_description ?? null,
+    likes: Number(row.likes ?? 0),
+    comments: Array.isArray(row.comments) ? row.comments : [],
     createdAt:
       typeof row.created_at === 'string'
         ? row.created_at
@@ -74,7 +88,9 @@ function createPostsRouter(io) {
 
       const { data, error } = await supabase
         .from('posts')
-        .select('id, content, created_at, user_id, profiles(email)')
+        .select(
+          'id, content, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
+        )
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .range(offset, rangeEnd);
@@ -129,7 +145,9 @@ function createPostsRouter(io) {
           user_id: userId,
           content: postContent
         })
-        .select('id, content, created_at, user_id, profiles(email)')
+        .select(
+          'id, content, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
+        )
         .single();
 
       if (error) {

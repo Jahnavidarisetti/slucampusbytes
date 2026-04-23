@@ -1,27 +1,44 @@
-function PostCard({ post, onLike, onToggleComments, onAddComment }) {
+﻿import AvatarBadge from "./AvatarBadge";
+
+function formatPostDate(createdAt) {
+  if (!createdAt) return "Campus update";
+
+  const parsed = new Date(createdAt);
+  if (Number.isNaN(parsed.getTime())) return "Campus update";
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile }) {
   const displayName =
     (typeof post.organization_name === "string" && post.organization_name.trim()) ||
+    (typeof post.club_name === "string" && post.club_name.trim()) ||
     "CampusConnect";
-
-  const postedAtLabel = post.created_at
-    ? new Date(post.created_at).toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : "Just now";
+  const canOpenProfile = typeof onOpenProfile === "function" && post.userId;
+  const postedAtLabel = formatPostDate(post.created_at || post.createdAt);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
-          {displayName.charAt(0).toUpperCase()}
-        </div>
+        <AvatarBadge src={post.avatarUrl} label={displayName} />
         <div>
-          <h3 className="font-semibold text-slate-800">{displayName}</h3>
-          <p className="text-xs text-slate-500">Posted {postedAtLabel}</p>
+          {canOpenProfile ? (
+            <button
+              type="button"
+              onClick={() => onOpenProfile(post.userId)}
+              className="font-semibold text-slate-800 transition hover:text-blue-600"
+            >
+              {displayName}
+            </button>
+          ) : (
+            <h3 className="font-semibold text-slate-800">{displayName}</h3>
+          )}
+          <p className="text-xs text-slate-500">{postedAtLabel}</p>
         </div>
       </div>
 

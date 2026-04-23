@@ -1,7 +1,15 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+import AvatarBadge from "./components/AvatarBadge";
 import PostCard from "./components/PostCard";
+import OrgSearchBar from "./components/OrgSearchBar";
 import { fetchPosts, createPost, updatePost } from "./api/config";
+import { fetchOrganizationByProfileId } from "./api/organizations";
+import {
+  syncOrganizationFromProfile,
+  syncProfileFromMetadata,
+} from "./lib/supabaseAuth";
 
 const POST_CONTENT_PREFIX = "CB_POST_V1::";
 
@@ -137,7 +145,7 @@ export const addComment = (posts, postId, commentText) => {
   if (!commentText.trim()) return posts;
 
   const newComment = {
-    id: Date.now(),
+    id: newClientUuid(),
     text: commentText,
   };
 
@@ -149,6 +157,7 @@ export const addComment = (posts, postId, commentText) => {
 };
 
 function App() {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState("");
@@ -169,15 +178,33 @@ function App() {
       .maybeSingle();
 
     if (!error && data) {
+      let syncedProfile = data;
+
+      try {
+        syncedProfile = await syncProfileFromMetadata(userId, data, metadata);
+      } catch (syncError) {
+        console.warn("Unable to sync profile from metadata:", syncError.message);
+      }
+
+      try {
+        await syncOrganizationFromProfile(userId, syncedProfile, metadata);
+      } catch (syncError) {
+        console.warn("Unable to sync organization profile:", syncError.message);
+      }
+
       const roleFromMetadata = metadata.role?.toString() || "";
       const usernameFromMetadata = metadata.username?.toString() || "";
       const profileValue = {
         ...data,
         role:
-          data.role && data.role.toLowerCase() !== "user"
-            ? data.role
-            : roleFromMetadata || data.role,
-        username: data.username || usernameFromMetadata || data.email,
+          syncedProfile.role && syncedProfile.role.toLowerCase() !== "user"
+            ? syncedProfile.role
+            : roleFromMetadata || syncedProfile.role,
+        username:
+          syncedProfile.username ||
+          usernameFromMetadata ||
+          syncedProfile.full_name ||
+          syncedProfile.email,
       };
       setProfile(profileValue);
     } else {
@@ -539,13 +566,13 @@ function App() {
 
     const variants = [payload];
     if (Object.prototype.hasOwnProperty.call(payload, "comments")) {
-      const { comments, ...withoutComments } = payload;
+      const { comments: _comments, ...withoutComments } = payload;
       if (Object.keys(withoutComments).length > 0) {
         variants.push(withoutComments);
       }
     }
     if (Object.prototype.hasOwnProperty.call(payload, "liked_by")) {
-      const { liked_by, ...withoutLikedBy } = payload;
+      const { liked_by: _likedBy, ...withoutLikedBy } = payload;
       if (Object.keys(withoutLikedBy).length > 0) {
         variants.push(withoutLikedBy);
       }
@@ -745,17 +772,8 @@ function App() {
 
   const handleAddComment = async (postId, commentText) => {
     if (!commentText.trim()) return;
-
-    const optimisticComment = {
-      id: newClientUuid(),
-      text: commentText,
-    };
     const previousPosts = posts;
-    const updatedPosts = posts.map((post) =>
-      post.id === postId
-        ? { ...post, comments: [...post.comments, optimisticComment] }
-        : post
-    );
+    const updatedPosts = addComment(posts, postId, commentText);
 
     setPosts(updatedPosts);
 
@@ -819,6 +837,15 @@ function App() {
     resetComposer();
   };
 
+  const handleOpenOrganization = async (profileId) => {
+    try {
+      const organization = await fetchOrganizationByProfileId(profileId);
+      navigate(`/organizations/${organization.id}`);
+    } catch (error) {
+      setApiError(error.message || "Unable to open that organization profile.");
+    }
+  };
+
   return (
     <div className="h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 flex justify-center overflow-hidden">
       <div className="max-w-[1400px] w-full h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70 flex flex-col">
@@ -829,27 +856,33 @@ function App() {
               alt="logo"
               className="h-8 w-8 object-contain"
             />
-            <div>
-              <h1 className="text-lg font-bold text-slate-800">
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold text-slate-800 leading-tight">
                 CampusConnect
               </h1>
-              <p className="text-sm text-slate-500">Campus posts and org updates</p>
+              <p className="text-xs text-slate-500">Campus posts and org updates</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Center: Organization search bar */}
+          <div className="flex-1 flex justify-center px-4">
+            <OrgSearchBar />
+          </div>
+
+          {/* Right: Profile + Logout */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             {profile && (
               <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
-                <img
-                  src={profile.avatar_url || "/default-avatar.png"}
-                  alt={profile.username || "Profile"}
-                  className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                <AvatarBadge
+                  src={profile.avatar_url}
+                  label={profile.username || profile.email || "Profile"}
+                  size="sm"
                 />
                 <div className="hidden sm:block text-sm">
                   <div className="font-semibold text-slate-800">
                     {profile.username || profile.email}
                   </div>
-                  <div className="text-slate-500">{profile.role}</div>
+                  <div className="text-slate-500 text-xs">{profile.role}</div>
                 </div>
               </div>
             )}
@@ -865,6 +898,7 @@ function App() {
           </div>
         </div>
 
+        {/* â”€â”€ Main content grid â”€â”€ */}
         <div className="grid grid-cols-12 gap-4 p-6 flex-1 overflow-hidden min-h-0">
           <aside className="col-span-12 lg:col-span-2">
             <div className="rounded-md bg-white/70 border border-slate-200 p-4 h-full overflow-hidden">
@@ -882,6 +916,7 @@ function App() {
             </div>
           </aside>
 
+          {/* Main feed */}
           <main className="col-span-12 lg:col-span-8 flex flex-col min-h-0">
             <div className="rounded-md bg-white/70 border border-slate-200 flex flex-col h-full overflow-hidden min-h-0">
               {apiError && (
@@ -890,19 +925,31 @@ function App() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onLike={handleLike}
-                    onToggleComments={handleToggleComments}
-                    onAddComment={handleAddComment}
-                  />
-                ))}
+                {posts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/80 p-8 text-center text-slate-600">
+                    No posts yet. Organization updates will appear here.
+                  </div>
+                ) : (
+                  posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onLike={handleLike}
+                      onToggleComments={handleToggleComments}
+                      onAddComment={handleAddComment}
+                      onOpenProfile={
+                        post.role === "Organization"
+                          ? handleOpenOrganization
+                          : undefined
+                      }
+                    />
+                  ))
+                )}
               </div>
             </div>
           </main>
 
+          {/* Right sidebar */}
           <aside className="col-span-12 lg:col-span-2 flex flex-col gap-4">
             {profile?.role === "Organization" && (
               <div className="rounded-md bg-white/70 border border-slate-200 p-4 overflow-hidden">
