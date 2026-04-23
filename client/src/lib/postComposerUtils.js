@@ -2,6 +2,12 @@ export const TITLE_MAX_LENGTH = 200;
 export const DESCRIPTION_MAX_LENGTH = 5000;
 export const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
 export const ACCEPTED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const DESCRIPTION_TONE_OPTIONS = [
+  { value: "professional", label: "Professional" },
+  { value: "friendly", label: "Friendly" },
+  { value: "exciting", label: "Exciting" },
+  { value: "concise", label: "Concise" },
+];
 
 export function isSchemaCompatibilityError(error) {
   const message = String(error?.message || "").toLowerCase();
@@ -63,4 +69,3 @@ export function isValidImageFile(file) {
 
   return { ok: true, error: null };
 }
-

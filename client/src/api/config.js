@@ -44,3 +44,15 @@ export async function updatePost(postId, updates) {
   });
   return payload.post ?? payload;
 }
+
+export async function rewritePostDescription(description, tone) {
+  const payload = await apiRequest('/api/ai/rewrite-description', {
+    method: 'POST',
+    body: {
+      description,
+      tone,
+    },
+  });
+
+  return payload.description ?? '';
+}

@@ -4,7 +4,12 @@ import { supabase } from "./supabaseClient";
 import AvatarBadge from "./components/AvatarBadge";
 import PostCard from "./components/PostCard";
 import OrgSearchBar from "./components/OrgSearchBar";
-import { fetchPosts, createPost, updatePost } from "./api/config";
+import {
+  fetchPosts,
+  createPost,
+  rewritePostDescription,
+  updatePost,
+} from "./api/config";
 import { fetchOrganizationByProfileId } from "./api/organizations";
 import {
   syncOrganizationFromProfile,
@@ -13,6 +18,7 @@ import {
 import {
   ACCEPTED_IMAGE_MIME_TYPES,
   DESCRIPTION_MAX_LENGTH,
+  DESCRIPTION_TONE_OPTIONS,
   MAX_IMAGE_SIZE_BYTES,
   TITLE_MAX_LENGTH,
   isNetworkFetchError,
@@ -159,6 +165,8 @@ function App() {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState("");
   const [postDescription, setPostDescription] = useState("");
+  const [descriptionTone, setDescriptionTone] = useState("professional");
+  const [isRewritingDescription, setIsRewritingDescription] = useState(false);
   const [postImageFile, setPostImageFile] = useState(null);
   const [postImagePreview, setPostImagePreview] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
@@ -332,8 +340,35 @@ function App() {
     }
     setPostTitle("");
     setPostDescription("");
+    setDescriptionTone("professional");
     setPostImageFile(null);
     setPostImagePreview(null);
+  };
+
+  const handleRewriteDescriptionTone = async () => {
+    if (!postDescription.trim()) {
+      setApiError("Add a description first, then choose a tone to rewrite it.");
+      return;
+    }
+
+    try {
+      setIsRewritingDescription(true);
+      setApiError(null);
+      setSuccessMessage("");
+
+      const rewrittenDescription = await rewritePostDescription(
+        postDescription,
+        descriptionTone
+      );
+
+      setPostDescription(rewrittenDescription);
+    } catch (error) {
+      setApiError(
+        error.message || "Unable to rewrite the description right now."
+      );
+    } finally {
+      setIsRewritingDescription(false);
+    }
   };
 
   const handleImageChange = (event) => {
@@ -1115,6 +1150,36 @@ function App() {
                 <label htmlFor="post-description" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Description
                 </label>
+                <div className="flex flex-col gap-2 rounded-xl border border-sky-100 bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Rewrite tone</p>
+                    <p className="text-xs text-slate-500">
+                      Rework the description into a more polished voice before posting.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <select
+                      aria-label="Description tone"
+                      value={descriptionTone}
+                      onChange={(event) => setDescriptionTone(event.target.value)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+                    >
+                      {DESCRIPTION_TONE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleRewriteDescriptionTone}
+                      disabled={!postDescription.trim() || isRewritingDescription}
+                      className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isRewritingDescription ? "Rewriting..." : "Rewrite Tone"}
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   id="post-description"
                   value={postDescription}

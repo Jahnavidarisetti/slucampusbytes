@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DESCRIPTION_MAX_LENGTH,
+  DESCRIPTION_TONE_OPTIONS,
   TITLE_MAX_LENGTH,
   isValidImageFile,
   validateComposerInput,
@@ -41,5 +42,13 @@ describe("post composer utils", () => {
     const validFile = { type: "image/png", size: 50 * 1024 };
     expect(isValidImageFile(validFile).ok).toBe(true);
   });
-});
 
+  it("exposes supported description tone options", () => {
+    expect(DESCRIPTION_TONE_OPTIONS.map((option) => option.value)).toEqual([
+      "professional",
+      "friendly",
+      "exciting",
+      "concise",
+    ]);
+  });
+});

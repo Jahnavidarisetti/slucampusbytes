@@ -5,6 +5,10 @@ const {
   isValidImageUrl,
   validateCreatePostPayload,
 } = require('../utils/postValidation');
+const {
+  rewriteDescriptionWithGemini,
+  validateRewriteDescriptionPayload,
+} = require('../utils/aiRewrite');
 
 // Test GET route
 router.get('/test', (req, res) => {
@@ -32,6 +36,27 @@ router.get('/supabase/health', async (req, res) => {
     return res.json({ ok: true, rows: data.length });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/ai/rewrite-description', async (req, res) => {
+  const validation = validateRewriteDescriptionPayload(req.body || {});
+  if (validation.error) {
+    return res.status(400).json({ ok: false, error: validation.error });
+  }
+
+  try {
+    const description = await rewriteDescriptionWithGemini({
+      description: validation.normalizedDescription,
+      tone: validation.normalizedTone,
+    });
+
+    return res.json({ ok: true, description });
+  } catch (error) {
+    const statusCode = Number.isInteger(error.statusCode)
+      ? error.statusCode
+      : 500;
+    return res.status(statusCode).json({ ok: false, error: error.message });
   }
 });
 
