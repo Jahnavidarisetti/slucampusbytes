@@ -95,3 +95,115 @@ export const updateProfile = async (userId, payload) => {
     throw new Error("Profile update failed. Please try again after login.");
   }
 };
+
+export const upsertOrganization = async (profileId, payload) => {
+  const { data, error } = await supabase
+    .from("organizations")
+    .upsert(
+      {
+        profile_id: profileId,
+        ...payload,
+      },
+      { onConflict: "profile_id" }
+    )
+    .select("id, profile_id, username, name, description, logo_url")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Organization profile sync failed. Please try again after login.");
+  }
+
+  return data;
+};
+
+function trimMetadataValue(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildProfileSyncPayload(profile = {}, metadata = {}) {
+  const payload = {};
+  const username = trimMetadataValue(metadata.username);
+  const fullName = trimMetadataValue(metadata.full_name);
+  const role = trimMetadataValue(metadata.role);
+  const description = trimMetadataValue(metadata.organization_description);
+  const avatarUrl = trimMetadataValue(metadata.avatar_url);
+
+  if (username && !profile.username) {
+    payload.username = username;
+  }
+
+  if (fullName && !profile.full_name) {
+    payload.full_name = fullName;
+  }
+
+  if (role && (!profile.role || profile.role.toLowerCase() === "user")) {
+    payload.role = role;
+  }
+
+  if (avatarUrl && !profile.avatar_url) {
+    payload.avatar_url = avatarUrl;
+  }
+
+  return payload;
+}
+
+export const syncProfileFromMetadata = async (userId, profile = {}, metadata = {}) => {
+  const payload = buildProfileSyncPayload(profile, metadata);
+
+  if (Object.keys(payload).length === 0) {
+    return profile;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", userId)
+    .select("id, username, email, role, avatar_url, full_name, organization_description")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Profile sync failed. Please try signing in again.");
+  }
+
+  return data ?? { ...profile, ...payload };
+};
+
+function buildOrganizationSyncPayload(profile = {}, metadata = {}) {
+  const role = trimMetadataValue(metadata.role) || trimMetadataValue(profile.role);
+
+  if (role !== "Organization") {
+    return null;
+  }
+
+  const username = trimMetadataValue(metadata.username) || trimMetadataValue(profile.username);
+  const name = trimMetadataValue(metadata.full_name) || trimMetadataValue(profile.full_name);
+  const description =
+    trimMetadataValue(metadata.organization_description) ||
+    trimMetadataValue(profile.organization_description);
+  const logoUrl = trimMetadataValue(metadata.avatar_url) || trimMetadataValue(profile.avatar_url);
+
+  if (!username || !name) {
+    return null;
+  }
+
+  return {
+    username,
+    name,
+    description: description || null,
+    logo_url: logoUrl || null,
+  };
+}
+
+export const syncOrganizationFromProfile = async (
+  profileId,
+  profile = {},
+  metadata = {}
+) => {
+  const payload = buildOrganizationSyncPayload(profile, metadata);
+
+  if (!payload) {
+    return null;
+  }
+
+  return upsertOrganization(profileId, payload);
+};

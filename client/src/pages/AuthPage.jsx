@@ -6,8 +6,10 @@ import {
   isSluEmail,
   normalizeEmail,
   resolveEmailFromIdentifier,
+  syncOrganizationFromProfile,
   updateProfile,
   uploadAvatarFile,
+  upsertOrganization,
   validatePassword,
   validateUsername,
 } from "../lib/supabaseAuth";
@@ -286,13 +288,18 @@ function AuthPage({ initialMode = "login" }) {
           await updateProfile(userId, {
             username: registerData.username,
             full_name: registerData.fullName,
-            organization_description:
-              registerData.role === "Organization"
-                ? registerData.organizationDescription
-                : null,
             role: registerData.role,
             avatar_url: avatarUrl || null,
           });
+
+          if (registerData.role === "Organization") {
+            await upsertOrganization(userId, {
+              username: registerData.username,
+              name: registerData.fullName,
+              description: registerData.organizationDescription || null,
+              logo_url: avatarUrl || null,
+            });
+          }
         } catch (updateError) {
           warningText =
             updateError.message ||
@@ -311,6 +318,29 @@ function AuthPage({ initialMode = "login" }) {
       });
 
       if (hasSession) {
+        await syncOrganizationFromProfile(
+          data.user.id,
+          {
+            role: registerData.role,
+            username: registerData.username,
+            full_name: registerData.fullName,
+            avatar_url: avatarUrl || null,
+            organization_description:
+              registerData.role === "Organization"
+                ? registerData.organizationDescription
+                : null,
+          },
+          {
+            role: registerData.role,
+            username: registerData.username,
+            full_name: registerData.fullName,
+            avatar_url: avatarUrl || null,
+            organization_description:
+              registerData.role === "Organization"
+                ? registerData.organizationDescription
+                : null,
+          }
+        ).catch(() => null);
         navigate("/");
       }
     } catch (error) {

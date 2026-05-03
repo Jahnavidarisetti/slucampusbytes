@@ -97,6 +97,8 @@ test('GET /api/posts returns historical feed data latest first', async () => {
       return {
         select(selection) {
           assert.match(selection, /created_at/);
+          assert.match(selection, /likes/);
+          assert.match(selection, /profiles\(email, username, full_name, avatar_url, role, organization_description\)/);
           return this;
         },
         order() {
@@ -112,13 +114,31 @@ test('GET /api/posts returns historical feed data latest first', async () => {
                 id: 'older-post',
                 content: 'Older content',
                 created_at: '2026-03-29T12:00:00.000Z',
-                profiles: { email: 'older@example.com' }
+                user_id: 'org-older',
+                likes: 2,
+                comments: [{ id: 'comment-1', text: 'nice' }],
+                profiles: {
+                  email: 'older@example.com',
+                  username: 'Older Org',
+                  avatar_url: 'https://cdn.example.com/older.png',
+                  role: 'Organization',
+                  organization_description: 'Older org profile'
+                }
               },
               {
                 id: 'newer-post',
                 content: 'Newer content',
                 created_at: '2026-03-31T12:00:00.000Z',
-                profiles: { email: 'newer@example.com' }
+                user_id: 'org-newer',
+                likes: 7,
+                comments: [{ id: 'comment-2', text: 'welcome' }],
+                profiles: {
+                  email: 'newer@example.com',
+                  username: 'Newer Org',
+                  avatar_url: 'https://cdn.example.com/newer.png',
+                  role: 'Organization',
+                  organization_description: 'Newer org profile'
+                }
               }
             ],
             error: null
@@ -147,8 +167,14 @@ test('GET /api/posts returns historical feed data latest first', async () => {
     );
     assert.deepEqual(body[0], {
       id: 'newer-post',
-      author: 'newer',
+      userId: 'org-newer',
+      author: 'Newer Org',
       content: 'Newer content',
+      avatarUrl: 'https://cdn.example.com/newer.png',
+      role: 'Organization',
+      organizationDescription: 'Newer org profile',
+      likes: 7,
+      comments: [{ id: 'comment-2', text: 'welcome' }],
       createdAt: '2026-03-31T12:00:00.000Z'
     });
     assert.equal(response.headers.get('x-feed-has-more'), 'false');
@@ -200,7 +226,7 @@ test('POST /api/posts creates a post and broadcasts new_post', async () => {
           return this;
         },
         select(selection) {
-          assert.match(selection, /profiles\(email\)/);
+          assert.match(selection, /profiles\(email, username, full_name, avatar_url, role, organization_description\)/);
           return this;
         },
         single() {
@@ -210,7 +236,15 @@ test('POST /api/posts creates a post and broadcasts new_post', async () => {
               content: 'Admin announcement',
               created_at: '2026-03-31T18:45:00.000Z',
               user_id: 'admin-123',
-              profiles: { email: 'admin@example.com' }
+              likes: 0,
+              comments: [],
+              profiles: {
+                email: 'admin@example.com',
+                username: 'Admin Org',
+                avatar_url: 'https://cdn.example.com/admin.png',
+                role: 'Organization',
+                organization_description: 'Admin org'
+              }
             },
             error: null
           });
@@ -248,8 +282,14 @@ test('POST /api/posts creates a post and broadcasts new_post', async () => {
     });
     assert.deepEqual(body, {
       id: 'created-post-1',
-      author: 'admin',
+      userId: 'admin-123',
+      author: 'Admin Org',
       content: 'Admin announcement',
+      avatarUrl: 'https://cdn.example.com/admin.png',
+      role: 'Organization',
+      organizationDescription: 'Admin org',
+      likes: 0,
+      comments: [],
       createdAt: '2026-03-31T18:45:00.000Z'
     });
     assert.equal(broadcastCalls.length, 1);
@@ -293,6 +333,8 @@ test('emitNewPost broadcasts new_post to all connected clients', () => {
     id: 'created-post-2',
     author: 'admin',
     content: 'Broadcast message',
+    likes: 0,
+    comments: [],
     createdAt: '2026-03-31T19:00:00.000Z'
   };
 

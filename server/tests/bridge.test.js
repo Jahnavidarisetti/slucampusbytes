@@ -138,7 +138,7 @@ test('POST /api/posts accepts valid payload and returns created post quickly', a
           return this;
         },
         select(selection) {
-          assert.match(selection, /profiles\(email\)/);
+          assert.match(selection, /profiles\(email, username, full_name, avatar_url, role, organization_description\)/);
           return this;
         },
         single() {
@@ -148,7 +148,15 @@ test('POST /api/posts accepts valid payload and returns created post quickly', a
               content: 'Hello from frontend',
               created_at: '2026-03-31T20:00:00.000Z',
               user_id: 'user-42',
-              profiles: { email: 'user42@example.com' }
+              likes: 0,
+              comments: [],
+              profiles: {
+                email: 'user42@example.com',
+                username: 'Student Org',
+                avatar_url: 'https://cdn.example.com/student-org.png',
+                role: 'Organization',
+                organization_description: 'Student org profile'
+              }
             },
             error: null
           });
@@ -183,8 +191,14 @@ test('POST /api/posts accepts valid payload and returns created post quickly', a
     ]);
     assert.deepEqual(body, {
       id: 'created-post-42',
-      author: 'user42',
+      userId: 'user-42',
+      author: 'Student Org',
       content: 'Hello from frontend',
+      avatarUrl: 'https://cdn.example.com/student-org.png',
+      role: 'Organization',
+      organizationDescription: 'Student org profile',
+      likes: 0,
+      comments: [],
       createdAt: '2026-03-31T20:00:00.000Z'
     });
   } finally {
