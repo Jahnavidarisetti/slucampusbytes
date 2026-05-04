@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import AvatarBadge from "./components/AvatarBadge";
@@ -28,6 +28,7 @@ import {
 } from "./lib/postComposerUtils";
 
 const POST_CONTENT_PREFIX = "CB_POST_V1::";
+
 
 function newClientUuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -193,7 +194,9 @@ function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
-
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+  
   async function loadProfile(userId, metadata = {}) {
     setIsProfileLoading(true);
     const { data, error } = await supabase
@@ -280,6 +283,35 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isProfileMenuOpen]);
 
   useEffect(() => {
     const loadPosts = async () => {
@@ -961,6 +993,17 @@ function App() {
     }
   };
 
+  const handleMenuNavigate = (path) => {
+    setIsProfileMenuOpen(false);
+    navigate(path);
+  };
+
+  const handleLogout = async () => {
+    setIsProfileMenuOpen(false);
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
+
   const titleLength = postTitle.length;
   const descriptionLength = postDescription.length;
   const isComposerSubmitDisabled =
@@ -973,8 +1016,8 @@ function App() {
   return (
     <div className="h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 flex justify-center overflow-hidden">
       <div className="max-w-[1400px] w-full h-screen bg-gradient-to-b from-slate-50 to-slate-100 shadow-[0_10px_40px_rgba(15,23,42,0.15)] border border-white/70 flex flex-col">
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 bg-white/60 backdrop-blur">
-          <div className="flex items-center gap-3">
+        <div className="relative z-20 flex min-h-16 flex-wrap items-center gap-4 border-b border-slate-200 bg-white/60 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="flex flex-shrink-0 items-center gap-3">
             <img
               src="/logo.png"
               alt="logo"
@@ -989,36 +1032,68 @@ function App() {
           </div>
 
           {/* Center: Organization search bar */}
-          <div className="flex-1 flex justify-center px-4">
-            <OrgSearchBar />
+          <div className="order-3 w-full md:order-none md:flex-1">
+            <div className="mx-auto w-full max-w-md">
+              <OrgSearchBar />
+            </div>
           </div>
 
-          {/* Right: Profile + Logout */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+         
+          {/* Right: Profile Dropdown */}
+          <div
+            className="relative ml-auto flex flex-shrink-0 items-center gap-3"
+            ref={profileMenuRef}
+          >
             {profile && (
-              <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((current) => !current)}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
+                className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm transition hover:bg-slate-50"
+              >
                 <AvatarBadge
                   src={profile.avatar_url}
                   label={profile.username || profile.email || "Profile"}
                   size="sm"
                 />
-                <div className="hidden sm:block text-sm">
+                <div className="hidden sm:block text-sm text-left">
                   <div className="font-semibold text-slate-800">
                     {profile.username || profile.email}
                   </div>
                   <div className="text-slate-500 text-xs">{profile.role}</div>
                 </div>
+              </button>
+            )}
+
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <button
+                  onClick={() => handleMenuNavigate("/profile")}
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-100"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => handleMenuNavigate("/settings")}
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-100"
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => handleMenuNavigate("/edit-profile")}
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-100"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  Logout
+                </button>
               </div>
             )}
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.href = "/login";
-              }}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Logout
-            </button>
           </div>
         </div>
 
@@ -1030,12 +1105,36 @@ function App() {
                 Menu
               </h2>
               <div className="space-y-3">
-                <div className="p-2 rounded bg-slate-100">Home</div>
-                <div className="p-2 rounded bg-slate-100">Events</div>
-                <div className="p-2 rounded bg-slate-100">Clubs</div>
-                <div className="p-2 rounded bg-slate-100">Calendar</div>
-                <div className="p-2 rounded bg-slate-100">Profile</div>
-                <div className="p-2 rounded bg-slate-100">Settings</div>
+                <button
+                  onClick={() => navigate("/")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => navigate("/organizations")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
+                  Organizations
+                </button>
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => navigate("/settings")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => navigate("/edit-profile")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
+                  Edit Profile
+                </button>
               </div>
             </div>
           </aside>
@@ -1066,7 +1165,11 @@ function App() {
                       onLike={handleLike}
                       onToggleComments={handleToggleComments}
                       onAddComment={handleAddComment}
-                      onOpenProfile={handleOpenOrganization}
+                      onOpenProfile={
+                        post.role === "Organization"
+                          ? handleOpenOrganization
+                          : undefined
+                      }
                     />
                   ))
                 )}
