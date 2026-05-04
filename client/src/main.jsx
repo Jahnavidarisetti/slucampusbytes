@@ -13,6 +13,9 @@ import AuthPage from "./pages/AuthPage";
 import OrganizationDetailsPage from "./pages/OrganizationDetailsPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
 import { supabase } from "./supabaseClient";
+import UserProfile from "./pages/UserProfile";
+import EditProfile from "./pages/EditProfile";
+import Settings from "./pages/Settings";
 
 function RequireAuth({ children }) {
   const location = useLocation();
@@ -84,6 +87,30 @@ createRoot(document.getElementById("root")).render(
           element={
             <RequireAuth>
               <OrganizationDetailsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <UserProfile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/edit-profile"
+          element={
+            <RequireAuth>
+              <EditProfile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <Settings />
             </RequireAuth>
           }
         />

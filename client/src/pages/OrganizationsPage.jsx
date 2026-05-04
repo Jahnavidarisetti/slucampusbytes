@@ -54,7 +54,9 @@ function sortOrganizationsByFilter(organizations, filter) {
   const sorted = [...organizations];
 
   if (filter === "featured") {
-    return sorted.sort((left, right) => compareByScore(left, right, featuredScore));
+    return sorted.sort((left, right) =>
+      compareByScore(left, right, featuredScore)
+    );
   }
 
   if (filter === "liked") {
@@ -65,7 +67,48 @@ function sortOrganizationsByFilter(organizations, filter) {
     );
   }
 
-  return sorted.sort((left, right) => compareByScore(left, right, relevanceScore));
+  return sorted.sort((left, right) =>
+    compareByScore(left, right, relevanceScore)
+  );
+}
+
+function OrganizationCardSkeleton() {
+  return (
+    <div
+      data-testid="organizations-page-skeleton"
+      className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <div className="flex items-start gap-4 animate-pulse">
+        <div className="h-16 w-16 rounded-full bg-slate-200" />
+        <div className="flex-1 space-y-3">
+          <div className="h-6 w-40 rounded-full bg-slate-200" />
+          <div className="h-4 w-28 rounded-full bg-slate-100" />
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2 animate-pulse">
+        <div className="h-4 w-full rounded-full bg-slate-100" />
+        <div className="h-4 w-5/6 rounded-full bg-slate-100" />
+        <div className="h-4 w-2/3 rounded-full bg-slate-100" />
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 animate-pulse">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-md border border-slate-100 bg-slate-50 px-3 py-3"
+          >
+            <div className="h-6 w-10 rounded-full bg-slate-200" />
+            <div className="mt-2 h-3 w-20 rounded-full bg-slate-100" />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex justify-end animate-pulse">
+        <div className="h-9 w-24 rounded-full bg-slate-200" />
+      </div>
+    </div>
+  );
 }
 
 export default function OrganizationsPage() {
@@ -142,7 +185,9 @@ export default function OrganizationsPage() {
   );
 
   const handleOpenOrganization = (organization) => {
-    navigate(`/organizations/${organization.id}`);
+    navigate(`/organizations/${organization.id}`, {
+      state: { fromOrganizations: true },
+    });
   };
 
   const handleToggleFollow = async (organization) => {
@@ -260,8 +305,13 @@ export default function OrganizationsPage() {
           )}
 
           {loading ? (
-            <div className="rounded-md border border-slate-200 bg-white p-8 text-center text-slate-600">
-              Loading organizations...
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="sr-only" aria-live="polite">
+                Loading organizations...
+              </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <OrganizationCardSkeleton key={index} />
+              ))}
             </div>
           ) : error ? (
             <div className="rounded-md border border-red-200 bg-red-50 p-8 text-center text-red-700">

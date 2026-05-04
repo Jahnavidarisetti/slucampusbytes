@@ -243,6 +243,8 @@ describe("OrganizationsPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /Dance Society/i }));
 
-    expect(navigate).toHaveBeenCalledWith("/organizations/organization-3");
+    expect(navigate).toHaveBeenCalledWith("/organizations/organization-3", {
+      state: { fromOrganizations: true },
+    });
   });
 });
