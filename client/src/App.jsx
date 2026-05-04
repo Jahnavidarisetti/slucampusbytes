@@ -21,6 +21,7 @@ import {
   DESCRIPTION_TONE_OPTIONS,
   MAX_IMAGE_SIZE_BYTES,
   TITLE_MAX_LENGTH,
+  getTodayDateString,
   isNetworkFetchError,
   isSchemaCompatibilityError,
   isValidImageFile,
@@ -1058,6 +1059,7 @@ function App() {
 
   const titleLength = postTitle.length;
   const descriptionLength = postDescription.length;
+  const todayDate = getTodayDateString();
   const isComposerSubmitDisabled =
     loadingCreate ||
     !postTitle.trim() ||
@@ -1314,6 +1316,7 @@ function App() {
                   id="post-event-date"
                   type="date"
                   value={postEventDate}
+                  min={todayDate}
                   onChange={(event) => {
                     setPostEventDate(event.target.value);
                     setApiError(null);

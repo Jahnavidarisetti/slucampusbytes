@@ -38,6 +38,19 @@ export function isValidEventDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+export function getTodayDateString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+export function isPastEventDate(value) {
+  return isValidEventDate(value) && Boolean(value) && value < getTodayDateString();
+}
+
 export function validateComposerInput({ title, description, eventDate }) {
   const normalizedTitle = typeof title === "string" ? title.trim() : "";
   const normalizedDescription =
@@ -57,6 +70,10 @@ export function validateComposerInput({ title, description, eventDate }) {
 
   if (!isValidEventDate(eventDate)) {
     return "Event Date must be a valid date.";
+  }
+
+  if (isPastEventDate(eventDate)) {
+    return "Event Date cannot be in the past.";
   }
 
   return null;

@@ -7,6 +7,7 @@ import {
   saveCalendarEvent,
 } from "../api/calendar";
 import { fetchEventPosts } from "../api/posts";
+import { isPastEventDate } from "../lib/postComposerUtils";
 import { supabase } from "../supabaseClient";
 
 function EventsPage() {
@@ -207,6 +208,7 @@ function EventsPage() {
                 <EventCard
                   key={event.id}
                   event={event}
+                  isCalendarActionVisible={!isPastEventDate(event.eventDate)}
                   actionLabel={
                     calendarPostIds.has(String(event.id))
                       ? "Added to Calendar"

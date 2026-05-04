@@ -12,7 +12,13 @@ function formatEventDate(eventDate) {
   });
 }
 
-function EventCard({ event, onOpen, onAddToCalendar, actionLabel = "Add to Calendar" }) {
+function EventCard({
+  event,
+  onOpen,
+  onAddToCalendar,
+  actionLabel = "Add to Calendar",
+  isCalendarActionVisible = true,
+}) {
   const handleAddToCalendar = (clickEvent) => {
     clickEvent.stopPropagation();
     onAddToCalendar(event);
@@ -49,15 +55,17 @@ function EventCard({ event, onOpen, onAddToCalendar, actionLabel = "Add to Calen
           </h2>
         </div>
       </button>
-      <div className="mt-auto flex justify-end border-t border-slate-100 p-4 pt-3">
-        <button
-          type="button"
-          onClick={handleAddToCalendar}
-          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          {actionLabel}
-        </button>
-      </div>
+      {isCalendarActionVisible && (
+        <div className="mt-auto flex justify-end border-t border-slate-100 p-4 pt-3">
+          <button
+            type="button"
+            onClick={handleAddToCalendar}
+            className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            {actionLabel}
+          </button>
+        </div>
+      )}
     </article>
   );
 }

@@ -219,4 +219,26 @@ describe("EventsPage", () => {
       screen.getByRole("button", { name: "Add to Calendar" })
     ).toBeInTheDocument();
   });
+
+  it("does not show the calendar action for past events", async () => {
+    fetchEventPosts.mockResolvedValue([
+      {
+        id: "past-event",
+        title: "Old Service Day",
+        eventDate: "2000-01-01",
+        image: null,
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <EventsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Old Service Day")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /calendar/i })
+    ).not.toBeInTheDocument();
+  });
 });
