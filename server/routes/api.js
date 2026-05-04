@@ -124,6 +124,8 @@ function normalizePost(post) {
           ? post.content
           : '',
     image_url: typeof post.image_url === 'string' ? post.image_url : null,
+    eventDate: typeof post.event_date === 'string' ? post.event_date : null,
+    event_date: typeof post.event_date === 'string' ? post.event_date : null,
     avatar_url: typeof profile?.avatar_url === 'string' ? profile.avatar_url : null,
     role: typeof profile?.role === 'string' ? profile.role : null,
     content: typeof post.content === 'string' ? post.content : '',
@@ -148,12 +150,16 @@ async function selectPostsWithFallback({ id = null, limit = null } = {}) {
   const selectAttempts = [
     {
       selection:
-        'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
+        'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
       sortBy: 'created_at',
     },
     {
       selection:
-        'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
+        'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
+      sortBy: 'created_at',
+    },
+    {
+      selection: 'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments',
       sortBy: 'created_at',
     },
     {
@@ -222,13 +228,14 @@ async function selectPostsWithFallback({ id = null, limit = null } = {}) {
   return { error: lastError || new Error('Unable to query posts table.') };
 }
 
-function buildInsertPayload({ userId, content, title, description, imageUrl }) {
+function buildInsertPayload({ userId, content, title, description, imageUrl, eventDate }) {
   const payload = {
     user_id: userId,
     content,
     title,
     description,
     image_url: imageUrl,
+    event_date: eventDate,
     likes: 0,
     liked_by: [],
     comments: [],
@@ -244,6 +251,7 @@ function compactInsertPayload(payload, level) {
 
   if (level >= 1) {
     delete next.comments;
+    delete next.event_date;
   }
 
   if (level >= 2) {
@@ -262,6 +270,10 @@ function compactInsertPayload(payload, level) {
 
 async function insertPostWithFallback(payload) {
   const selectAttempts = [
+    'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
+    'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
+    'id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments',
+    'id, user_id, content, title, description, image_url, event_date, created_at, likes',
     'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
     'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
     'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments',
@@ -328,12 +340,15 @@ router.post('/posts', async (req, res) => {
       title,
       description,
       image_url,
+      eventDate,
+      event_date,
     } = req.body || {};
     const payloadValidation = validateCreatePostPayload({
       title,
       description,
       content,
       imageUrl: image_url,
+      eventDate: eventDate ?? event_date,
     });
     if (payloadValidation.error) {
       return res.status(400).json({ ok: false, error: payloadValidation.error });
@@ -347,6 +362,7 @@ router.post('/posts', async (req, res) => {
       title: payloadValidation.normalizedTitle,
       description: payloadValidation.normalizedDescription,
       imageUrl: payloadValidation.normalizedImageUrl,
+      eventDate: payloadValidation.normalizedEventDate,
     });
 
     const { data, error } = await insertPostWithFallback(insertBody);
@@ -452,7 +468,7 @@ router.patch('/posts/:id', async (req, res) => {
       .from('posts')
       .update(updates)
       .eq('id', id)
-      .select('id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)')
+      .select('id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)')
       .single();
 
     if (error && schemaCompatibilityError(error)) {

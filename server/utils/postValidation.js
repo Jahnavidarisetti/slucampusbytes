@@ -15,7 +15,32 @@ function isValidImageUrl(value) {
   }
 }
 
-function validateCreatePostPayload({ title, description, content, imageUrl }) {
+function normalizeEventDate(value) {
+  if (value == null || value === '') return { error: null, eventDate: null };
+  if (typeof value !== 'string') {
+    return { error: 'eventDate must be a valid date in YYYY-MM-DD format.' };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return { error: null, eventDate: null };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return { error: 'eventDate must be a valid date in YYYY-MM-DD format.' };
+  }
+
+  const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return { error: 'eventDate must be a valid date in YYYY-MM-DD format.' };
+  }
+
+  const isoDate = parsed.toISOString().slice(0, 10);
+  if (isoDate !== trimmed) {
+    return { error: 'eventDate must be a valid date in YYYY-MM-DD format.' };
+  }
+
+  return { error: null, eventDate: trimmed };
+}
+
+function validateCreatePostPayload({ title, description, content, imageUrl, eventDate }) {
   const normalizedTitle = typeof title === 'string' ? title.trim() : '';
   const normalizedDescription =
     typeof description === 'string' && description.trim()
@@ -40,12 +65,18 @@ function validateCreatePostPayload({ title, description, content, imageUrl }) {
     return { error: 'image_url must be a valid HTTP(S) URL.' };
   }
 
+  const eventDateValidation = normalizeEventDate(eventDate);
+  if (eventDateValidation.error) {
+    return { error: eventDateValidation.error };
+  }
+
   return {
     error: null,
     normalizedTitle,
     normalizedDescription,
     normalizedImageUrl:
       typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl.trim() : null,
+    normalizedEventDate: eventDateValidation.eventDate,
   };
 }
 
@@ -53,6 +84,7 @@ module.exports = {
   DESCRIPTION_MAX_LENGTH,
   TITLE_MAX_LENGTH,
   isValidImageUrl,
+  normalizeEventDate,
   validateCreatePostPayload,
 };
 

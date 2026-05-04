@@ -28,7 +28,17 @@ export function isNetworkFetchError(error) {
   );
 }
 
-export function validateComposerInput({ title, description }) {
+export function isValidEventDate(value) {
+  if (!value) return true;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function validateComposerInput({ title, description, eventDate }) {
   const normalizedTitle = typeof title === "string" ? title.trim() : "";
   const normalizedDescription =
     typeof description === "string" ? description.trim() : "";
@@ -43,6 +53,10 @@ export function validateComposerInput({ title, description }) {
 
   if (normalizedDescription.length > DESCRIPTION_MAX_LENGTH) {
     return `Description must be ${DESCRIPTION_MAX_LENGTH} characters or fewer.`;
+  }
+
+  if (!isValidEventDate(eventDate)) {
+    return "Event Date must be a valid date.";
   }
 
   return null;

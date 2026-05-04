@@ -28,8 +28,22 @@ describe("post composer utils", () => {
 
   it("accepts valid payload", () => {
     expect(
-      validateComposerInput({ title: "Valid title", description: "Valid body" })
+      validateComposerInput({
+        title: "Valid title",
+        description: "Valid body",
+        eventDate: "2026-05-15",
+      })
     ).toBeNull();
+  });
+
+  it("rejects invalid event dates", () => {
+    expect(
+      validateComposerInput({
+        title: "Valid title",
+        description: "Valid body",
+        eventDate: "2026-02-31",
+      })
+    ).toMatch(/event date/i);
   });
 
   it("validates image format and file size", () => {

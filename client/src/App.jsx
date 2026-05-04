@@ -105,6 +105,10 @@ function mapPostFromApi(post) {
       (typeof post.image_url === "string" && post.image_url.trim()) ||
       parsedLegacy.image ||
       null,
+    eventDate:
+      (typeof post.eventDate === "string" && post.eventDate) ||
+      (typeof post.event_date === "string" && post.event_date) ||
+      null,
     likes: Number(post.likes ?? 0),
     liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
     comments: Array.isArray(post.comments)
@@ -183,6 +187,7 @@ function App() {
   const [posts, setPosts] = useState([]);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [postTitle, setPostTitle] = useState("");
+  const [postEventDate, setPostEventDate] = useState("");
   const [postDescription, setPostDescription] = useState("");
   const [descriptionTone, setDescriptionTone] = useState("professional");
   const [isRewritingDescription, setIsRewritingDescription] = useState(false);
@@ -327,6 +332,10 @@ function App() {
 
         try {
           const selectAttempts = [
+            "id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)",
+            "id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)",
+            "id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments",
+            "id, user_id, content, title, description, image_url, event_date, created_at, likes",
             "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)",
             "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)",
             "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
@@ -389,6 +398,7 @@ function App() {
       URL.revokeObjectURL(postImagePreview);
     }
     setPostTitle("");
+    setPostEventDate("");
     setPostDescription("");
     setDescriptionTone("professional");
     setPostImageFile(null);
@@ -498,6 +508,7 @@ function App() {
     title,
     description,
     imageUrl,
+    eventDate,
   }) => {
     const isMissingColumnError = (error) => {
       const message = String(error?.message || "").toLowerCase();
@@ -505,6 +516,8 @@ function App() {
     };
 
     const selectAttempts = [
+      "id, user_id, content, title, description, image_url, event_date, created_at, likes, liked_by, comments",
+      "id, user_id, content, title, description, image_url, event_date, created_at, likes",
       "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
       "id, user_id, content, title, description, image_url, created_at, likes",
       "id, user_id, content, created_at, likes, liked_by, comments",
@@ -520,9 +533,19 @@ function App() {
         title,
         description,
         image_url: imageUrl || null,
+        event_date: eventDate || null,
         likes: 0,
         liked_by: [],
         comments: [],
+      },
+      {
+        user_id: userId,
+        content: description,
+        title,
+        description,
+        image_url: imageUrl || null,
+        event_date: eventDate || null,
+        likes: 0,
       },
       {
         user_id: userId,
@@ -725,8 +748,9 @@ function App() {
   const handleCreatePost = async (event) => {
     event.preventDefault();
     const title = postTitle.trim();
+    const eventDate = postEventDate.trim();
     const description = postDescription.trim();
-    const validationError = validateComposerInput({ title, description });
+    const validationError = validateComposerInput({ title, description, eventDate });
 
     if (validationError) {
       setApiError(validationError);
@@ -760,6 +784,7 @@ function App() {
         title,
         description,
         image_url: uploadedImageUrl,
+        eventDate: eventDate || null,
         user_id: session.user.id,
       });
       const savedPost = response?.post ?? response;
@@ -777,6 +802,7 @@ function App() {
             title: savedPost.title ?? title,
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? uploadedImageUrl,
+            event_date: (savedPost.event_date ?? savedPost.eventDate ?? eventDate) || null,
             content: savedPost.content ?? description,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
@@ -794,6 +820,7 @@ function App() {
           title,
           description,
           imageUrl: uploadedImageUrl,
+          eventDate,
         });
 
         const organizationName =
@@ -808,6 +835,7 @@ function App() {
             title: savedPost.title ?? title,
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? uploadedImageUrl,
+            event_date: (savedPost.event_date ?? savedPost.eventDate ?? eventDate) || null,
             content: savedPost.content ?? description,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
@@ -1246,6 +1274,23 @@ function App() {
                 <p className="text-xs text-slate-500">
                   {titleLength}/{TITLE_MAX_LENGTH}
                 </p>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="post-event-date" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Event Date
+                </label>
+                <input
+                  id="post-event-date"
+                  type="date"
+                  value={postEventDate}
+                  onChange={(event) => {
+                    setPostEventDate(event.target.value);
+                    setApiError(null);
+                    setSuccessMessage("");
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                />
               </div>
 
               <div className="space-y-1">

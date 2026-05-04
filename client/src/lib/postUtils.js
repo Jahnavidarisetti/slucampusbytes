@@ -19,6 +19,7 @@ export function normalizePost(post) {
     title: post.title ?? "",
     content: post.content ?? post.description ?? "",
     image: post.image ?? post.image_url ?? null,
+    eventDate: post.eventDate ?? post.event_date ?? null,
     likes: Number(post.likes ?? 0),
     liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
     comments: Array.isArray(post.comments)
