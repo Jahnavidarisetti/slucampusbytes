@@ -1,33 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import AvatarBadge from "./AvatarBadge";
-import { fetchOrganizationDirectoryDetail } from "../api/organizationDirectory";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const PAGE_SIZE = 9;
 
-function OrganizationCard({ org, isJoining, onJoin, joinedIds, onOpenDetail, openingId }) {
+function OrganizationCard({ org, isJoining, onJoin, joinedIds }) {
   const alreadyJoined = joinedIds.has(org.id);
-  const openingProfile = openingId === org.id;
 
   return (
     <article className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start gap-3">
-        <AvatarBadge src={org.logoUrl} label={org.name} size="md" />
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-slate-800">{org.name}</h3>
-            {org.isFeatured ? (
-              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                Featured
-              </span>
-            ) : null}
-          </div>
-          {org.username ? (
-            <p className="text-xs text-slate-500">@{org.username}</p>
-          ) : null}
-        </div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-800">{org.name}</h3>
+        {org.isFeatured ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            Featured
+          </span>
+        ) : null}
       </div>
 
       <p className="mb-3 text-sm text-slate-600">{org.description}</p>
@@ -42,30 +30,19 @@ function OrganizationCard({ org, isJoining, onJoin, joinedIds, onOpenDetail, ope
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onOpenDetail(org.id)}
-          disabled={openingProfile}
-          className="h-9 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {openingProfile ? "Loading…" : "View profile"}
-        </button>
-        <button
-          type="button"
-          onClick={() => onJoin(org)}
-          disabled={alreadyJoined || isJoining}
-          className="h-9 rounded bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          {alreadyJoined ? "Joined" : isJoining ? "Joining..." : "Join"}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => onJoin(org)}
+        disabled={alreadyJoined || isJoining}
+        className="h-9 rounded bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        {alreadyJoined ? "Joined" : isJoining ? "Joining..." : "Join"}
+      </button>
     </article>
   );
 }
 
 function OrganizationSearchPage() {
-  const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("featured");
@@ -76,7 +53,6 @@ function OrganizationSearchPage() {
   const [joiningId, setJoiningId] = useState(null);
   const [joinedIds, setJoinedIds] = useState(() => new Set());
   const [feedback, setFeedback] = useState("");
-  const [openingOrgId, setOpeningOrgId] = useState(null);
 
   const fetchOrganizations = async ({ reset = false } = {}) => {
     const nextOffset = reset ? 0 : offset;
@@ -130,19 +106,6 @@ function OrganizationSearchPage() {
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     setSearchTerm(searchInput.trim());
-  };
-
-  const handleOpenDetail = async (organizationId) => {
-    setOpeningOrgId(organizationId);
-    setFeedback("");
-    try {
-      await fetchOrganizationDirectoryDetail(organizationId);
-      navigate(`/organizations/${organizationId}`);
-    } catch (err) {
-      setFeedback(err.message || "Unable to load organization details.");
-    } finally {
-      setOpeningOrgId(null);
-    }
   };
 
   const handleJoin = async (org) => {
@@ -227,8 +190,6 @@ function OrganizationSearchPage() {
             joinedIds={joinedIds}
             isJoining={joiningId === org.id}
             onJoin={handleJoin}
-            onOpenDetail={handleOpenDetail}
-            openingId={openingOrgId}
           />
         ))}
       </div>
