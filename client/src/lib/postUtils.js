@@ -6,7 +6,36 @@ export function newClientUuid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+const POST_CONTENT_PREFIX = "CB_POST_V1::";
+
+export function parsePostContent(content) {
+  if (typeof content !== "string") {
+    return { title: "", description: "", image: null, eventDate: null };
+  }
+
+  if (!content.startsWith(POST_CONTENT_PREFIX)) {
+    return { title: "", description: content, image: null, eventDate: null };
+  }
+
+  try {
+    const parsed = JSON.parse(
+      decodeURIComponent(content.slice(POST_CONTENT_PREFIX.length))
+    );
+
+    return {
+      title: typeof parsed.title === "string" ? parsed.title : "",
+      description: typeof parsed.description === "string" ? parsed.description : "",
+      image: typeof parsed.image === "string" ? parsed.image : null,
+      eventDate: typeof parsed.eventDate === "string" ? parsed.eventDate : null,
+    };
+  } catch {
+    return { title: "", description: content, image: null, eventDate: null };
+  }
+}
+
 export function normalizePost(post) {
+  const parsedContent = parsePostContent(post.content);
+
   return {
     id: post.id,
     userId: post.userId ?? post.user_id ?? null,
@@ -16,10 +45,10 @@ export function normalizePost(post) {
     avatarUrl: post.avatarUrl ?? post.avatar_url ?? null,
     role: post.role ?? null,
     description: post.description ?? post.organizationDescription ?? null,
-    title: post.title ?? "",
-    content: post.content ?? post.description ?? "",
-    image: post.image ?? post.image_url ?? null,
-    eventDate: post.eventDate ?? post.event_date ?? null,
+    title: post.title || parsedContent.title || "",
+    content: post.description || parsedContent.description || post.content || "",
+    image: post.image ?? post.image_url ?? parsedContent.image ?? null,
+    eventDate: post.eventDate ?? post.event_date ?? parsedContent.eventDate ?? null,
     likes: Number(post.likes ?? 0),
     liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
     comments: Array.isArray(post.comments)
