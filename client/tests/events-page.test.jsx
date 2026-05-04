@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 
 describe("EventsPage", () => {
-  it("renders event posts, sorts by event date, and opens post details", async () => {
+  it("filters active and expired events in chronological order and opens post details", async () => {
     fetchEventPosts.mockResolvedValue([
       {
         id: "later-post",
@@ -67,6 +67,18 @@ describe("EventsPage", () => {
         eventDate: "2026-05-10",
         image: null,
       },
+      {
+        id: "expired-later-post",
+        title: "Old Game Night",
+        eventDate: "2000-05-20",
+        image: null,
+      },
+      {
+        id: "expired-early-post",
+        title: "Old Service Day",
+        eventDate: "2000-05-10",
+        image: null,
+      },
     ]);
 
     render(
@@ -76,13 +88,17 @@ describe("EventsPage", () => {
     );
 
     expect(await screen.findByText("Morning Meetup")).toBeInTheDocument();
-    const headingsAscending = screen.getAllByRole("heading", { level: 2 });
-    expect(headingsAscending[0]).toHaveTextContent("Morning Meetup");
-    expect(headingsAscending[1]).toHaveTextContent("Late Night Breakfast");
+    expect(screen.queryByText("Old Service Day")).not.toBeInTheDocument();
+    const activeHeadings = screen.getAllByRole("heading", { level: 2 });
+    expect(activeHeadings[0]).toHaveTextContent("Morning Meetup");
+    expect(activeHeadings[1]).toHaveTextContent("Late Night Breakfast");
 
-    fireEvent.click(screen.getByRole("button", { name: "Latest" }));
-    const headingsDescending = screen.getAllByRole("heading", { level: 2 });
-    expect(headingsDescending[0]).toHaveTextContent("Late Night Breakfast");
+    fireEvent.click(screen.getByRole("button", { name: "Expired" }));
+    const expiredHeadings = screen.getAllByRole("heading", { level: 2 });
+    expect(expiredHeadings[0]).toHaveTextContent("Old Service Day");
+    expect(expiredHeadings[1]).toHaveTextContent("Old Game Night");
+
+    fireEvent.click(screen.getByRole("button", { name: "Active" }));
 
     fireEvent.click(screen.getByRole("button", { name: /late night breakfast/i }));
     expect(navigate).toHaveBeenCalledWith("/posts/later-post");
@@ -236,6 +252,7 @@ describe("EventsPage", () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole("button", { name: "Expired" }));
     expect(await screen.findByText("Old Service Day")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /calendar/i })

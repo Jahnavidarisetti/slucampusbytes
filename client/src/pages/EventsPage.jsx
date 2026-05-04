@@ -13,7 +13,7 @@ import { supabase } from "../supabaseClient";
 function EventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [eventStatusFilter, setEventStatusFilter] = useState("active");
   const [sessionUserId, setSessionUserId] = useState(null);
   const [calendarPostIds, setCalendarPostIds] = useState(new Set());
   const [statusMessage, setStatusMessage] = useState("");
@@ -55,12 +55,14 @@ function EventsPage() {
     };
   }, []);
 
-  const sortedEvents = useMemo(() => {
-    return [...events].sort((a, b) => {
-      const comparison = String(a.eventDate).localeCompare(String(b.eventDate));
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-  }, [events, sortDirection]);
+  const visibleEvents = useMemo(() => {
+    return events
+      .filter((event) => {
+        const isExpired = isPastEventDate(event.eventDate);
+        return eventStatusFilter === "expired" ? isExpired : !isExpired;
+      })
+      .sort((a, b) => String(a.eventDate).localeCompare(String(b.eventDate)));
+  }, [events, eventStatusFilter]);
 
   const upcomingCount = useMemo(() => {
     const today = new Date();
@@ -146,16 +148,16 @@ function EventsPage() {
 
           <div className="mb-5 flex flex-wrap items-center gap-2">
             {[
-              { value: "asc", label: "Oldest" },
-              { value: "desc", label: "Latest" },
+              { value: "active", label: "Active" },
+              { value: "expired", label: "Expired" },
             ].map((filter) => {
-              const isActive = sortDirection === filter.value;
+              const isActive = eventStatusFilter === filter.value;
 
               return (
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() => setSortDirection(filter.value)}
+                  onClick={() => setEventStatusFilter(filter.value)}
                   aria-pressed={isActive}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                     isActive
@@ -198,13 +200,13 @@ function EventsPage() {
                 </div>
               ))}
             </div>
-          ) : sortedEvents.length === 0 ? (
+          ) : visibleEvents.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/85 p-8 text-center text-slate-600">
-              No dated events have been posted yet.
+              No {eventStatusFilter} events have been posted yet.
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {sortedEvents.map((event) => (
+              {visibleEvents.map((event) => (
                 <EventCard
                   key={event.id}
                   event={event}
