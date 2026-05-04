@@ -50,7 +50,18 @@ function normalizeOrganization(row) {
     likesCount: parseNumber(row.likes_count, 0),
     memberCount: parseNumber(row.member_count, 0),
     featuredScore: parseNumber(row.featured_score, 0),
-    isFeatured: Boolean(row.is_featured)
+    isFeatured: Boolean(row.is_featured),
+    username: row.username || null,
+    logoUrl: row.logo_url || null,
+    profileId: row.profile_id || null,
+    createdAt: row.created_at || null
+  };
+}
+
+function normalizeOrganizationDetail(row, followerCount) {
+  return {
+    ...normalizeOrganization(row),
+    followerCount: parseNumber(followerCount, 0)
   };
 }
 
@@ -67,7 +78,7 @@ function createOrganizationsRouter() {
       let query = supabase
         .from('organizations')
         .select(
-          'id, name, description, category, likes_count, member_count, featured_score, is_featured'
+          'id, profile_id, username, name, description, logo_url, created_at, category, likes_count, member_count, featured_score, is_featured'
         );
 
       const searchText = escapeLikeTerm(q);
@@ -99,6 +110,45 @@ function createOrganizationsRouter() {
       res.setHeader('X-Org-Has-More', hasMore ? 'true' : 'false');
 
       return res.status(200).json(pagedRows);
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  router.get('/:organizationId', async (req, res) => {
+    const { organizationId } = req.params;
+
+    if (!organizationId || typeof organizationId !== 'string') {
+      return res.status(400).json({ message: 'organizationId is required.' });
+    }
+
+    try {
+      const { data: row, error } = await supabase
+        .from('organizations')
+        .select(
+          'id, profile_id, username, name, description, logo_url, created_at, category, likes_count, member_count, featured_score, is_featured'
+        )
+        .eq('id', organizationId)
+        .maybeSingle();
+
+      if (error) {
+        return res.status(500).json({ message: error.message });
+      }
+
+      if (!row) {
+        return res.status(404).json({ message: 'Organization not found.' });
+      }
+
+      const { count: followerCount, error: countError } = await supabase
+        .from('organization_followers')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
+
+      if (countError) {
+        return res.status(500).json({ message: countError.message });
+      }
+
+      return res.status(200).json(normalizeOrganizationDetail(row, followerCount ?? 0));
     } catch (err) {
       return res.status(500).json({ message: err.message });
     }

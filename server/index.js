@@ -5,6 +5,7 @@ const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
 const createPostsRouter = require('./routes/posts');
+const createOrganizationsRouter = require('./routes/organizations');
 const { setupSocketHandlers } = require('./sockets/postHandler');
 
 const app = express();
@@ -36,6 +37,7 @@ app.get('/', (req, res) => {
 const apiRoutes = require('./routes/api');
 app.use('/api', apiRoutes);
 app.use('/api/posts', createPostsRouter(io));
+app.use('/api/organizations', createOrganizationsRouter());
 
 // Start server
 const PORT = process.env.PORT || 5000;

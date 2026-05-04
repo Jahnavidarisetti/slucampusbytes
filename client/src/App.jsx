@@ -287,7 +287,13 @@ function App() {
               <div className="space-y-3">
                 <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">🏠 Home</div>
                 <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">🎉 Events</div>
-                <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">👥 Clubs</div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/organizations")}
+                  className="w-full text-left p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition"
+                >
+                  👥 Clubs
+                </button>
                 <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">📅 Calendar</div>
                 <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">👤 Profile</div>
                 <div className="p-2 rounded bg-slate-100 cursor-pointer hover:bg-blue-50 transition">⚙️ Settings</div>
