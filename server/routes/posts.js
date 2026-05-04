@@ -1,6 +1,7 @@
 const express = require('express');
 const { supabase } = require('../supabaseClient');
 const { emitNewPost } = require('../sockets/postHandler');
+const { normalizeEventDate } = require('../utils/postValidation');
 
 function authorFromProfile(profile) {
   if (!profile || typeof profile !== 'object') return 'Member';
@@ -50,7 +51,7 @@ function parseFeedPagination(query = {}) {
 
 function mapRow(row) {
   const profile = row.profiles;
-  return {
+  const mapped = {
     id: row.id,
     userId: row.user_id,
     author: authorFromProfile(profile),
@@ -65,6 +66,13 @@ function mapRow(row) {
         ? row.created_at
         : new Date(row.created_at).toISOString()
   };
+
+  if (typeof row.event_date === 'string' && row.event_date) {
+    mapped.eventDate = row.event_date;
+    mapped.event_date = row.event_date;
+  }
+
+  return mapped;
 }
 
 function sortFeedReverseChronological(items) {
@@ -89,7 +97,7 @@ function createPostsRouter(io) {
       const { data, error } = await supabase
         .from('posts')
         .select(
-          'id, content, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
+          'id, content, event_date, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
         )
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
@@ -115,7 +123,7 @@ function createPostsRouter(io) {
   });
 
   router.post('/', async (req, res) => {
-    const { content, user_id: bodyUserId } = req.body || {};
+    const { content, user_id: bodyUserId, eventDate, event_date } = req.body || {};
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return res.status(400).json({
@@ -137,16 +145,29 @@ function createPostsRouter(io) {
     }
 
     const postContent = content.trim();
+    const eventDateValidation = normalizeEventDate(eventDate ?? event_date);
+
+    if (eventDateValidation.error) {
+      return res.status(400).json({
+        message: eventDateValidation.error
+      });
+    }
 
     try {
+      const insertPayload = {
+        user_id: userId,
+        content: postContent
+      };
+
+      if (eventDateValidation.eventDate) {
+        insertPayload.event_date = eventDateValidation.eventDate;
+      }
+
       const { data, error } = await supabase
         .from('posts')
-        .insert({
-          user_id: userId,
-          content: postContent
-        })
+        .insert(insertPayload)
         .select(
-          'id, content, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
+          'id, content, event_date, created_at, user_id, likes, comments, profiles(email, username, full_name, avatar_url, role, organization_description)'
         )
         .single();
 

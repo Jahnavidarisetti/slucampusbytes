@@ -110,6 +110,97 @@ test('POST /api/posts rejects invalid image_url', async () => {
   }
 });
 
+test('POST /api/posts stores and returns eventDate', async () => {
+  let insertedPayload = null;
+  const supabase = {
+    from(table) {
+      assert.equal(table, 'posts');
+      return {
+        insert(payload) {
+          insertedPayload = payload;
+          return this;
+        },
+        select() {
+          return this;
+        },
+        single() {
+          return Promise.resolve({
+            data: {
+              id: 'post-with-date',
+              user_id: 'user-1',
+              title: 'Valid title',
+              description: 'Valid description',
+              content: 'Valid description',
+              image_url: null,
+              event_date: '2026-05-15',
+              created_at: '2026-05-01T12:00:00.000Z',
+              likes: 0,
+              liked_by: [],
+              comments: [],
+              profiles: null,
+            },
+            error: null,
+          });
+        },
+      };
+    },
+  };
+
+  const router = loadApiRouter({ supabase });
+  const server = await startTestServer(router);
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/posts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'user-1',
+        title: 'Valid title',
+        description: 'Valid description',
+        eventDate: '2026-05-15',
+      }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 201);
+    assert.equal(insertedPayload[0].event_date, '2026-05-15');
+    assert.equal(body.post.eventDate, '2026-05-15');
+    assert.equal(body.post.event_date, '2026-05-15');
+  } finally {
+    await server.close();
+  }
+});
+
+test('POST /api/posts rejects invalid eventDate', async () => {
+  const supabase = {
+    from() {
+      throw new Error('supabase insert should not execute for invalid payload');
+    },
+  };
+
+  const router = loadApiRouter({ supabase });
+  const server = await startTestServer(router);
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/posts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'user-1',
+        title: 'Valid title',
+        description: 'Valid description',
+        eventDate: '2026-02-31',
+      }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /eventDate/i);
+  } finally {
+    await server.close();
+  }
+});
+
 test('PATCH /api/posts/:id rejects invalid image_url', async () => {
   const supabase = {
     from() {
