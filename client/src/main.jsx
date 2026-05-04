@@ -12,6 +12,9 @@ import App from "./App.jsx";
 import AuthPage from "./pages/AuthPage";
 import OrganizationDetailsPage from "./pages/OrganizationDetailsPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
+import EventsPage from "./pages/EventsPage";
+import CalendarPage from "./pages/CalendarPage";
+import PostDetailsPage from "./pages/PostDetailsPage";
 import { supabase } from "./supabaseClient";
 import UserProfile from "./pages/UserProfile";
 import EditProfile from "./pages/EditProfile";
@@ -87,6 +90,30 @@ createRoot(document.getElementById("root")).render(
           element={
             <RequireAuth>
               <OrganizationDetailsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/events"
+          element={
+            <RequireAuth>
+              <EventsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <RequireAuth>
+              <CalendarPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/posts/:postId"
+          element={
+            <RequireAuth>
+              <PostDetailsPage />
             </RequireAuth>
           }
         />
