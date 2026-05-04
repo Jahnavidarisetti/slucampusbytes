@@ -4,6 +4,7 @@ import {
   fetchIsFollowing,
   fetchOrganizationById,
   fetchOrganizationByProfileId,
+  fetchOrganizationPosts,
   fetchOrganizationSummaries,
   fetchOrganizations,
 } from "../src/api/organizations";
@@ -313,5 +314,48 @@ describe("Organization listing API", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("Organization posts", () => {
+  it("loads event dates for organization detail posts", async () => {
+    const selections = [];
+    supabase.from.mockImplementation((table) => {
+      expect(table).toBe("posts");
+      return buildOrganizationsSelect(
+        {
+          data: [
+            {
+              id: "post-1",
+              user_id: "profile-1",
+              title: "Spring Tournament",
+              description: "Registration opens this week.",
+              image_url: null,
+              content: "Registration opens this week.",
+              event_date: "2026-05-12",
+              created_at: "2026-04-28T09:00:00.000Z",
+              likes: 9,
+              liked_by: [],
+              comments: [],
+            },
+          ],
+          error: null,
+        },
+        (entry) => selections.push(entry)
+      );
+    });
+
+    const posts = await fetchOrganizationPosts({
+      id: "org-1",
+      profile_id: "profile-1",
+      name: "Chess Club",
+      logo_url: null,
+    });
+
+    expect(selections[0]).toContain("event_date");
+    expect(posts[0]).toMatchObject({
+      id: "post-1",
+      eventDate: "2026-05-12",
+    });
   });
 });

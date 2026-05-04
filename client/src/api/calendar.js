@@ -50,5 +50,24 @@ export async function saveCalendarEvent(userId, event) {
   }
 
   writeEvents(userId, events);
-  return normalized;
+  return {
+    event: normalized,
+    alreadyAdded: existingIndex >= 0,
+  };
+}
+
+export async function removeCalendarEvent(userId, postId) {
+  if (!postId) {
+    throw new Error("Calendar event requires a post.");
+  }
+
+  const events = readEvents(userId);
+  const nextEvents = events.filter(
+    (entry) => String(entry.postId) !== String(postId)
+  );
+
+  writeEvents(userId, nextEvents);
+  return {
+    removed: nextEvents.length !== events.length,
+  };
 }

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EventCard from "../components/EventCard";
-import { saveCalendarEvent } from "../api/calendar";
+import {
+  fetchCalendarEvents,
+  removeCalendarEvent,
+  saveCalendarEvent,
+} from "../api/calendar";
 import { fetchEventPosts } from "../api/posts";
 import { supabase } from "../supabaseClient";
 
@@ -10,6 +14,7 @@ function EventsPage() {
   const [events, setEvents] = useState([]);
   const [sortDirection, setSortDirection] = useState("asc");
   const [sessionUserId, setSessionUserId] = useState(null);
+  const [calendarPostIds, setCalendarPostIds] = useState(new Set());
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -24,10 +29,15 @@ function EventsPage() {
           supabase.auth.getSession(),
           fetchEventPosts(),
         ]);
+        const userId = data.session?.user?.id ?? null;
+        const savedEvents = await fetchCalendarEvents(userId);
 
         if (!isMounted) return;
-        setSessionUserId(data.session?.user?.id ?? null);
+        setSessionUserId(userId);
         setEvents(eventPosts);
+        setCalendarPostIds(
+          new Set(savedEvents.map((event) => String(event.postId)))
+        );
         setError("");
       } catch (loadError) {
         if (isMounted) {
@@ -61,18 +71,42 @@ function EventsPage() {
     }).length;
   }, [events]);
 
-  const handleAddToCalendar = async (event) => {
+  const handleToggleCalendar = async (event) => {
+    const eventTitle = event.title || "Event";
+    const isInCalendar = calendarPostIds.has(String(event.id));
+
     try {
-      await saveCalendarEvent(sessionUserId, {
+      if (isInCalendar) {
+        await removeCalendarEvent(sessionUserId, event.id);
+        setStatusMessage(`${eventTitle} removed from Calendar.`);
+        setCalendarPostIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(String(event.id));
+          return nextIds;
+        });
+        setError("");
+        return;
+      }
+
+      const result = await saveCalendarEvent(sessionUserId, {
         postId: event.id,
         title: event.title,
         eventDate: event.eventDate,
         image: event.image,
       });
-      setStatusMessage(`${event.title || "Event"} added to Calendar.`);
+      setStatusMessage(
+        result?.alreadyAdded
+          ? `${eventTitle} is already in your Calendar.`
+          : `${eventTitle} added to Calendar.`
+      );
+      setCalendarPostIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.add(String(event.id));
+        return nextIds;
+      });
       setError("");
-    } catch (saveError) {
-      setError(saveError.message || "Unable to add event to Calendar.");
+    } catch (calendarError) {
+      setError(calendarError.message || "Unable to update Calendar.");
     }
   };
 
@@ -173,8 +207,13 @@ function EventsPage() {
                 <EventCard
                   key={event.id}
                   event={event}
+                  actionLabel={
+                    calendarPostIds.has(String(event.id))
+                      ? "Added to Calendar"
+                      : "Add to Calendar"
+                  }
                   onOpen={() => navigate(`/posts/${event.id}`)}
-                  onAddToCalendar={handleAddToCalendar}
+                  onAddToCalendar={handleToggleCalendar}
                 />
               ))}
             </div>

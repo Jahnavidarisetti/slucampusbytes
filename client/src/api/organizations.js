@@ -202,7 +202,7 @@ export async function fetchOrganizationPosts(organization) {
   const { data, error } = await supabase
     .from("posts")
     .select(
-      "id, user_id, title, description, image_url, content, created_at, likes, liked_by, comments"
+      "id, user_id, title, description, image_url, content, event_date, created_at, likes, liked_by, comments"
     )
     .eq("user_id", organization.profile_id)
     .order("created_at", { ascending: false });
