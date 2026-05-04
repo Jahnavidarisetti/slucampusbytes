@@ -1032,7 +1032,13 @@ function App() {
               <div className="space-y-3">
                 <div className="p-2 rounded bg-slate-100">Home</div>
                 <div className="p-2 rounded bg-slate-100">Events</div>
-                <div className="p-2 rounded bg-slate-100">Clubs</div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/organizations")}
+                  className="w-full rounded bg-slate-100 p-2 text-left transition hover:bg-blue-50 hover:text-blue-700"
+                >
+                  Organizations
+                </button>
                 <div className="p-2 rounded bg-slate-100">Calendar</div>
                 <div className="p-2 rounded bg-slate-100">Profile</div>
                 <div className="p-2 rounded bg-slate-100">Settings</div>

@@ -40,15 +40,6 @@ export default function OrganizationCard({
           </p>
         </div>
 
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            organization.is_following
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {organization.is_following ? "Following" : "Not following"}
-        </span>
       </div>
 
       <p className="mt-4 min-h-[4.5rem] overflow-hidden text-sm leading-6 text-slate-600">
@@ -77,9 +68,14 @@ export default function OrganizationCard({
             {followLoading ? "Following..." : "Follow"}
           </button>
         ) : (
-          <span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
-            Following
-          </span>
+          <button
+            type="button"
+            onClick={handleFollowClick}
+            disabled={followLoading}
+            className="rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {followLoading ? "Updating..." : "Following"}
+          </button>
         )}
       </div>
     </article>

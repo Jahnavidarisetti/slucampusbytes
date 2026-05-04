@@ -4,6 +4,7 @@ import OrganizationCard from "../components/OrganizationCard";
 import {
   fetchOrganizationSummaries,
   followOrganization,
+  unfollowOrganization,
 } from "../api/organizations";
 import { supabase } from "../supabaseClient";
 
@@ -83,11 +84,7 @@ export default function OrganizationsPage() {
       return;
     }
 
-    if (organization.is_following) {
-      return;
-    }
-
-    const nextFollowing = true;
+    const nextFollowing = !organization.is_following;
     setFollowLoadingId(organization.id);
     setActionError("");
     setOrganizations((currentOrganizations) =>
@@ -106,7 +103,11 @@ export default function OrganizationsPage() {
     );
 
     try {
-      await followOrganization(sessionUserId, organization.id);
+      if (nextFollowing) {
+        await followOrganization(sessionUserId, organization.id);
+      } else {
+        await unfollowOrganization(sessionUserId, organization.id);
+      }
     } catch (followError) {
       setOrganizations((currentOrganizations) =>
         currentOrganizations.map((item) =>
