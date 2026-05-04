@@ -4,6 +4,7 @@ import {
   fetchIsFollowing,
   fetchOrganizationById,
   fetchOrganizationByProfileId,
+  fetchOrganizationSummaries,
   fetchOrganizations,
 } from "../src/api/organizations";
 import { supabase } from "../src/supabaseClient";
@@ -65,6 +66,14 @@ function buildFollowerLookup(response) {
           return Promise.resolve(response);
         },
       };
+    },
+  };
+}
+
+function buildSimpleSelect(response) {
+  return {
+    select() {
+      return Promise.resolve(response);
     },
   };
 }
@@ -196,5 +205,113 @@ describe("Organization followers", () => {
     const follows = await fetchIsFollowing(null, "org-1");
     expect(follows).toBe(false);
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+});
+
+describe("Organization listing API", () => {
+  it("loads organization summaries with the current user id", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        organizations: [
+          {
+            id: "organization-1",
+            name: "ACM",
+            followers_count: 2,
+            posts_count: 1,
+            likes_count: 4,
+            comments_count: 3,
+            is_following: true,
+          },
+        ],
+      }),
+      statusText: "OK",
+    }));
+
+    try {
+      const results = await fetchOrganizationSummaries("student-1");
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:5000/api/organizations?user_id=student-1",
+        expect.objectContaining({
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+      expect(results[0]).toMatchObject({
+        id: "organization-1",
+        followers_count: 2,
+        is_following: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls back to Supabase summaries when the backend is unavailable", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+
+    supabase.from.mockImplementation((table) => {
+      if (table === "organizations") {
+        return buildSimpleSelect({
+          data: [
+            {
+              id: "organization-1",
+              profile_id: "org-profile-1",
+              username: "acm",
+              name: "ACM",
+              description: "CS chapter",
+              logo_url: null,
+            },
+          ],
+          error: null,
+        });
+      }
+
+      if (table === "organization_followers") {
+        return buildSimpleSelect({
+          data: [
+            { user_id: "student-1", organization_id: "organization-1" },
+            { user_id: "student-2", organization_id: "organization-1" },
+          ],
+          error: null,
+        });
+      }
+
+      if (table === "posts") {
+        return buildSimpleSelect({
+          data: [
+            {
+              id: "post-1",
+              user_id: "org-profile-1",
+              likes: 5,
+              comments: [{ text: "Nice" }],
+            },
+          ],
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    try {
+      const results = await fetchOrganizationSummaries("student-1");
+
+      expect(results[0]).toMatchObject({
+        id: "organization-1",
+        followers_count: 2,
+        posts_count: 1,
+        likes_count: 5,
+        comments_count: 1,
+        is_following: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
