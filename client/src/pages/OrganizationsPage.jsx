@@ -6,6 +6,32 @@ import {
   fetchOrganizations,
 } from "../api/organizations";
 
+function OrganizationCardSkeleton() {
+  return (
+    <div
+      data-testid="organizations-page-skeleton"
+      className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <div className="flex items-start gap-4 animate-pulse">
+        <div className="h-16 w-16 rounded-full bg-slate-200" />
+        <div className="flex-1 space-y-3">
+          <div className="h-6 w-40 rounded-full bg-slate-200" />
+          <div className="h-4 w-full rounded-full bg-slate-100" />
+          <div className="h-4 w-3/4 rounded-full bg-slate-100" />
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 animate-pulse">
+        <div className="space-y-2">
+          <div className="h-3 w-24 rounded-full bg-slate-200" />
+          <div className="h-6 w-10 rounded-full bg-slate-200" />
+        </div>
+        <div className="h-4 w-24 rounded-full bg-slate-200" />
+      </div>
+    </div>
+  );
+}
+
 export default function OrganizationsPage() {
   const navigate = useNavigate();
   const [organizations, setOrganizations] = useState([]);
@@ -78,8 +104,10 @@ export default function OrganizationsPage() {
         </div>
 
         {loading ? (
-          <div className="mt-6 rounded-2xl bg-white p-6 text-slate-600 shadow-sm">
-            Loading organizations...
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <OrganizationCardSkeleton key={index} />
+            ))}
           </div>
         ) : error ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -95,7 +123,11 @@ export default function OrganizationsPage() {
               <button
                 key={organization.id}
                 type="button"
-                onClick={() => navigate(`/organizations/${organization.id}`)}
+                onClick={() =>
+                  navigate(`/organizations/${organization.id}`, {
+                    state: { fromOrganizations: true },
+                  })
+                }
                 className="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-lg"
               >
                 <div className="flex items-start gap-4">

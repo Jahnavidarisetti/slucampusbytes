@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PostCard from "../components/PostCard";
 import AvatarBadge from "../components/AvatarBadge";
 import {
@@ -28,9 +28,81 @@ function StatCard({ label, value }) {
   );
 }
 
+function OrganizationDetailsSkeleton() {
+  return (
+    <div className="mt-6 space-y-6" data-testid="organization-details-skeleton">
+      <section className="rounded-[1.75rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start animate-pulse">
+          <div className="h-20 w-20 rounded-full bg-slate-200" />
+          <div className="flex-1 space-y-4">
+            <div className="h-8 w-64 rounded-full bg-slate-200" />
+            <div className="h-4 w-full rounded-full bg-slate-100" />
+            <div className="h-4 w-5/6 rounded-full bg-slate-100" />
+            <div className="flex flex-wrap gap-3">
+              <div className="h-8 w-32 rounded-full bg-slate-100" />
+              <div className="h-8 w-36 rounded-full bg-slate-100" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-2xl border border-slate-100 bg-slate-50 p-4"
+                >
+                  <div className="h-3 w-20 rounded-full bg-slate-200" />
+                  <div className="mt-3 h-7 w-12 rounded-full bg-slate-200" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="space-y-4">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm animate-pulse"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-slate-200" />
+              <div className="space-y-2">
+                <div className="h-4 w-32 rounded-full bg-slate-200" />
+                <div className="h-3 w-20 rounded-full bg-slate-100" />
+              </div>
+            </div>
+            <div className="mt-4 h-5 w-2/3 rounded-full bg-slate-200" />
+            <div className="mt-3 space-y-2">
+              <div className="h-4 w-full rounded-full bg-slate-100" />
+              <div className="h-4 w-5/6 rounded-full bg-slate-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatDateLabel(value) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Unknown";
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function OrganizationDetailsPage() {
   const { orgId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [organization, setOrganization] = useState(null);
   const [posts, setPosts] = useState([]);
   const [followerCount, setFollowerCount] = useState(0);
@@ -103,6 +175,12 @@ export default function OrganizationDetailsPage() {
       ),
     [posts]
   );
+  const recentActivityDate = posts[0]?.createdAt || posts[0]?.created_at || null;
+  const joinedDateLabel = formatDateLabel(organization?.created_at);
+  const recentActivityLabel = recentActivityDate
+    ? formatDateLabel(recentActivityDate)
+    : "No posts yet";
+  const showBackToOrganizations = Boolean(location.state?.fromOrganizations);
 
   const canFollow =
     Boolean(sessionUserId) &&
@@ -290,13 +368,24 @@ export default function OrganizationDetailsPage() {
     <div className="min-h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 px-4 py-8">
       <div className="mx-auto max-w-6xl rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            Back to Dashboard
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Back to Dashboard
+            </button>
+            {showBackToOrganizations && (
+              <button
+                type="button"
+                onClick={() => navigate("/organizations")}
+                className="rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-100"
+              >
+                Back to Organizations
+              </button>
+            )}
+          </div>
 
           {canFollow && (
             <button
@@ -319,9 +408,7 @@ export default function OrganizationDetailsPage() {
         </div>
 
         {loading ? (
-          <div className="mt-6 rounded-2xl bg-white p-6 text-slate-600 shadow-sm">
-            Loading organization details...
-          </div>
+          <OrganizationDetailsSkeleton />
         ) : loadError ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
             {loadError}
@@ -358,11 +445,21 @@ export default function OrganizationDetailsPage() {
                       "This organization has not added a description yet."}
                   </p>
 
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-600">
+                    <span className="rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+                      Joined {joinedDateLabel}
+                    </span>
+                    <span className="rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+                      Recent activity {recentActivityLabel}
+                    </span>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                     <StatCard label="Followers" value={followerCount} />
                     <StatCard label="Posts" value={posts.length} />
+                    <StatCard label="Joined" value={joinedDateLabel} />
+                    <StatCard label="Recent Activity" value={recentActivityLabel} />
                     <StatCard label="Total Likes" value={totals.likes} />
-                    <StatCard label="Total Comments" value={totals.comments} />
                   </div>
                 </div>
               </div>
