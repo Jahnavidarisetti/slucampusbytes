@@ -1,4 +1,4 @@
-import AvatarBadge from "./AvatarBadge";
+﻿import AvatarBadge from "./AvatarBadge";
 
 function formatPostDate(createdAt) {
   if (!createdAt) return "Campus update";
@@ -14,19 +14,18 @@ function formatPostDate(createdAt) {
   });
 }
 
-function PostCard({
-  post,
-  onLike,
-  onToggleComments,
-  onAddComment,
-  onOpenProfile,
-}) {
+function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile }) {
+  const displayName =
+    (typeof post.organization_name === "string" && post.organization_name.trim()) ||
+    (typeof post.club_name === "string" && post.club_name.trim()) ||
+    "CampusConnect";
   const canOpenProfile = typeof onOpenProfile === "function" && post.userId;
+  const postedAtLabel = formatPostDate(post.created_at || post.createdAt);
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm">
-      <div className="flex items-center gap-3 mb-3">
-        <AvatarBadge src={post.avatarUrl} label={post.club_name} />
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-3">
+        <AvatarBadge src={post.avatarUrl} label={displayName} />
         <div>
           {canOpenProfile ? (
             <button
@@ -34,51 +33,62 @@ function PostCard({
               onClick={() => onOpenProfile(post.userId)}
               className="font-semibold text-slate-800 transition hover:text-blue-600"
             >
-              {post.club_name}
+              {displayName}
             </button>
           ) : (
-            <h3 className="font-semibold text-slate-800">{post.club_name}</h3>
+            <h3 className="font-semibold text-slate-800">{displayName}</h3>
           )}
-          <p className="text-xs text-slate-500">{formatPostDate(post.createdAt)}</p>
+          <p className="text-xs text-slate-500">{postedAtLabel}</p>
         </div>
       </div>
 
-      <p className="text-slate-700 mb-3">{post.content}</p>
+      {post.title && (
+        <h4 className="mb-2 text-lg font-bold tracking-tight text-slate-900">
+          {post.title}
+        </h4>
+      )}
+
+      <p className="mb-3 whitespace-pre-wrap text-slate-700">{post.content}</p>
 
       {post.image && (
         <img
           src={post.image}
           alt="post"
-          className="rounded-lg mb-3 w-full max-h-80 object-cover"
+          className="mb-3 max-h-[520px] w-full rounded-xl border border-slate-100 bg-slate-50 object-contain"
         />
       )}
 
       <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
         <button
           onClick={() => onLike(post.id)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-sm font-medium text-slate-700 hover:bg-blue-100 hover:text-blue-600 transition"
+          className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 hover:text-blue-600"
         >
-          👍 <span>Like ({post.likes})</span>
+          <span>Like ({post.likes})</span>
         </button>
 
         <button
           onClick={() => onToggleComments(post.id)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-sm font-medium text-slate-700 hover:bg-blue-100 hover:text-blue-600 transition"
+          className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 hover:text-blue-600"
         >
-          💬 <span>Comment ({post.comments.length})</span>
+          <span>Comment ({post.comments.length})</span>
         </button>
       </div>
 
       {post.showComments && (
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <div className="space-y-3 mb-4">
+          <div className="mb-4 space-y-3">
             {post.comments.length > 0 ? (
               post.comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="rounded-lg bg-white border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-sm"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm"
                 >
-                  {comment.text}
+                  <p className="mb-1 text-xs font-semibold text-slate-500">
+                    {(typeof comment.author_name === "string" &&
+                      comment.author_name.trim()) ||
+                      "Anonymous"}
+                  </p>
+                  <p>{comment.text}</p>
                 </div>
               ))
             ) : (
@@ -108,7 +118,7 @@ function PostCard({
             />
             <button
               type="submit"
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 transition"
+              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600"
             >
               Send
             </button>

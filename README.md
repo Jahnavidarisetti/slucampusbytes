@@ -65,10 +65,17 @@ The backend requires the following values:
 
 ```env
 PORT=5000
+CLIENT_URL=http://localhost:5173
 SUPABASE_URL=<your-supabase-url>
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 SUPABASE_DEFAULT_USER_PASSWORD=<strong-random-password>
+GEMINI_API_KEY=<your-gemini-api-key>
+GEMINI_MODEL=gemini-2.5-flash
 ```
+
+You can start from `server/.env.example` and copy it to `server/.env`.
+
+The default backend port in this repo is `5000`, so the frontend API base URL defaults to `http://localhost:5000`.
 
 ### `client/.env`
 The frontend can use these values if you connect to Supabase or the local API:
@@ -132,4 +139,3 @@ Backend tests (Node):
 cd server
 npm run test
 ```
-

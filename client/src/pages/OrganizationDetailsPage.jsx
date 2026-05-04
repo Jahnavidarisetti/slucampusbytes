@@ -12,8 +12,7 @@ import {
 } from "../api/organizations";
 import { updatePost } from "../api/config";
 import {
-  appendComment,
-  incrementLike,
+  newClientUuid,
   toggleComments,
 } from "../lib/postUtils";
 import { supabase } from "../supabaseClient";
@@ -37,6 +36,7 @@ export default function OrganizationDetailsPage() {
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [sessionUserId, setSessionUserId] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -55,6 +55,7 @@ export default function OrganizationDetailsPage() {
           data: { session },
         } = await supabase.auth.getSession();
         const currentUserId = session?.user?.id ?? null;
+        setSession(session ?? null);
 
         const org = await fetchOrganizationById(orgId);
         const [followers, following, orgPosts] = await Promise.all([
@@ -137,15 +138,70 @@ export default function OrganizationDetailsPage() {
   };
 
   const handleLike = async (postId) => {
+    if (!sessionUserId) {
+      setActionError("Please sign in to like posts.");
+      return;
+    }
+
     const previousPosts = posts;
-    const updatedPosts = incrementLike(posts, postId);
+    const updatedPosts = posts.map((post) => {
+      if (post.id !== postId) return post;
+
+      const likedBy = Array.isArray(post.liked_by) ? post.liked_by : [];
+      const userHasLiked = likedBy.includes(sessionUserId);
+      const currentLikes =
+        typeof post.likes === "number" && Number.isFinite(post.likes) && post.likes >= 0
+          ? post.likes
+          : likedBy.length;
+      const nextLikedBy = userHasLiked
+        ? likedBy.filter((entry) => entry !== sessionUserId)
+        : [...likedBy, sessionUserId];
+      const nextLikes = userHasLiked
+        ? Math.max(currentLikes - 1, 0)
+        : currentLikes + 1;
+
+      return {
+        ...post,
+        liked_by: nextLikedBy,
+        likes: nextLikes,
+      };
+    });
+
     setActionError("");
     setPosts(updatedPosts);
 
     try {
-      const targetPost = updatedPosts.find((post) => post.id === postId);
-      if (targetPost) {
-        await updatePost(postId, { likes: targetPost.likes });
+      const saved = await updatePost(postId, { like_user_id: sessionUserId });
+      if (saved && typeof saved === "object") {
+        setPosts((current) =>
+          current.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  likes: Number(saved.likes ?? post.likes ?? 0),
+                  liked_by: Array.isArray(saved.liked_by)
+                    ? saved.liked_by
+                    : post.liked_by ?? [],
+                  comments: Array.isArray(saved.comments)
+                    ? saved.comments.map((comment) => ({
+                        id: comment?.id ?? newClientUuid(),
+                        text: typeof comment?.text === "string" ? comment.text : "",
+                        user_id:
+                          typeof comment?.user_id === "string"
+                            ? comment.user_id
+                            : null,
+                        author_name:
+                          (typeof comment?.author_name === "string" &&
+                            comment.author_name.trim()) ||
+                          (typeof comment?.author === "string" &&
+                            comment.author.trim()) ||
+                          "Anonymous",
+                      }))
+                    : post.comments,
+                }
+              : post
+          )
+        );
       }
     } catch (likeError) {
       setPosts(previousPosts);
@@ -161,16 +217,68 @@ export default function OrganizationDetailsPage() {
     if (!commentText.trim()) {
       return;
     }
+    if (!sessionUserId) {
+      setActionError("Please sign in to comment on posts.");
+      return;
+    }
 
     const previousPosts = posts;
-    const updatedPosts = appendComment(posts, postId, commentText);
+    const commentAuthorName =
+      (session?.user?.user_metadata?.full_name &&
+        String(session.user.user_metadata.full_name).trim()) ||
+      (session?.user?.user_metadata?.username &&
+        String(session.user.user_metadata.username).trim()) ||
+      (session?.user?.email && String(session.user.email).trim()) ||
+      "Anonymous";
+    const optimisticComment = {
+      id: newClientUuid(),
+      text: commentText.trim(),
+      user_id: sessionUserId,
+      author_name: commentAuthorName,
+    };
+    const updatedPosts = posts.map((post) =>
+      post.id === postId
+        ? { ...post, comments: [...(Array.isArray(post.comments) ? post.comments : []), optimisticComment] }
+        : post
+    );
     setActionError("");
     setPosts(updatedPosts);
 
     try {
       const targetPost = updatedPosts.find((post) => post.id === postId);
       if (targetPost) {
-        await updatePost(postId, { comments: targetPost.comments });
+        const saved = await updatePost(postId, { comments: targetPost.comments });
+        if (saved && typeof saved === "object") {
+          setPosts((current) =>
+            current.map((post) =>
+              post.id === postId
+                ? {
+                    ...post,
+                    likes: Number(saved.likes ?? post.likes ?? 0),
+                    liked_by: Array.isArray(saved.liked_by)
+                      ? saved.liked_by
+                      : post.liked_by ?? [],
+                    comments: Array.isArray(saved.comments)
+                      ? saved.comments.map((comment) => ({
+                          id: comment?.id ?? newClientUuid(),
+                          text: typeof comment?.text === "string" ? comment.text : "",
+                          user_id:
+                            typeof comment?.user_id === "string"
+                              ? comment.user_id
+                              : null,
+                          author_name:
+                            (typeof comment?.author_name === "string" &&
+                              comment.author_name.trim()) ||
+                            (typeof comment?.author === "string" &&
+                              comment.author.trim()) ||
+                            "Anonymous",
+                        }))
+                      : post.comments,
+                  }
+                : post
+            )
+          );
+        }
       }
     } catch (commentError) {
       setPosts(previousPosts);
