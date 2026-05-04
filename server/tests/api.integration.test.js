@@ -224,6 +224,21 @@ async function run() {
     assert.equal(commentBody.post.comments.length, 1);
     assert.equal(commentBody.post.comments[0].text, 'Saved comment');
 
+    const rewriteResponse = await fetch(`${server.baseUrl}/api/ai/rewrite-description`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        description: 'Bring your resume to the career fair at 2 PM in Busch Hall',
+        tone: 'professional',
+      }),
+    });
+    const rewriteBody = await rewriteResponse.json();
+
+    assert.equal(rewriteResponse.status, 200);
+    assert.equal(rewriteBody.ok, true);
+    assert.equal(typeof rewriteBody.description, 'string');
+    assert.ok(rewriteBody.description.length > 0);
+
     console.log('PASS API integration test');
   } catch (error) {
     console.error('FAIL API integration test');

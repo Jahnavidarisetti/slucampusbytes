@@ -20,7 +20,19 @@ export function normalizePost(post) {
     content: post.content ?? post.description ?? "",
     image: post.image ?? post.image_url ?? null,
     likes: Number(post.likes ?? 0),
-    comments: Array.isArray(post.comments) ? post.comments : [],
+    liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
+    comments: Array.isArray(post.comments)
+      ? post.comments.map((comment) => ({
+          id: comment?.id ?? newClientUuid(),
+          text: typeof comment?.text === "string" ? comment.text : "",
+          user_id: typeof comment?.user_id === "string" ? comment.user_id : null,
+          author_name:
+            (typeof comment?.author_name === "string" &&
+              comment.author_name.trim()) ||
+            (typeof comment?.author === "string" && comment.author.trim()) ||
+            "Anonymous",
+        }))
+      : [],
     createdAt: post.createdAt ?? post.created_at ?? null,
     showComments: Boolean(post.showComments),
   };

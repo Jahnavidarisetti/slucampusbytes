@@ -72,9 +72,14 @@ function mapPostFromApi(post) {
   return {
     id: post.id,
     userId: post.user_id ?? post.userId ?? null,
-    role: post.role ?? null,
+    role:
+      post.role ??
+      (typeof embeddedProfile?.role === "string" ? embeddedProfile.role : null),
     avatarUrl:
-      (typeof post.avatar_url === "string" && post.avatar_url.trim()) || null,
+      (typeof post.avatar_url === "string" && post.avatar_url.trim()) ||
+      (typeof embeddedProfile?.avatar_url === "string" &&
+        embeddedProfile.avatar_url.trim()) ||
+      null,
     club_name:
       (typeof post.club_name === "string" && post.club_name.trim()) || null,
     organization_name:
@@ -101,7 +106,18 @@ function mapPostFromApi(post) {
       null,
     likes: Number(post.likes ?? 0),
     liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
-    comments: Array.isArray(post.comments) ? post.comments : [],
+    comments: Array.isArray(post.comments)
+      ? post.comments.map((comment) => ({
+          id: comment?.id ?? newClientUuid(),
+          text: typeof comment?.text === "string" ? comment.text : "",
+          user_id:
+            typeof comment?.user_id === "string" ? comment.user_id : null,
+          author_name:
+            (typeof comment?.author_name === "string" && comment.author_name.trim()) ||
+            (typeof comment?.author === "string" && comment.author.trim()) ||
+            "Anonymous",
+        }))
+      : [],
     created_at: post.created_at || post.createdAt || null,
     showComments: false,
   };
@@ -144,12 +160,14 @@ export const toggleComments = (posts, id) => {
   );
 };
 
-export const addComment = (posts, postId, commentText) => {
+export const addComment = (posts, postId, commentText, author = {}) => {
   if (!commentText.trim()) return posts;
 
   const newComment = {
     id: newClientUuid(),
     text: commentText,
+    user_id: author.userId ?? null,
+    author_name: author.name ?? "Anonymous",
   };
 
   return posts.map((post) =>
@@ -277,8 +295,8 @@ function App() {
 
         try {
           const selectAttempts = [
-            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)",
-            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)",
+            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)",
+            "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)",
             "id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments",
             "id, user_id, content, title, description, image_url, created_at, likes",
             "id, user_id, content, created_at, likes, liked_by, comments",
@@ -402,6 +420,12 @@ function App() {
 
   const uploadPostImageToStorage = async (file, userId) => {
     if (!file) return null;
+    if (!session?.user?.id) {
+      throw new Error("Please sign in before uploading images.");
+    }
+    if (session.user.id !== userId) {
+      throw new Error("Image upload blocked: user does not own this upload path.");
+    }
 
     const extFromName = file.name?.split(".").pop()?.toLowerCase() || "jpg";
     const fallbackExt = file.type.includes("png")
@@ -411,9 +435,11 @@ function App() {
         : file.type.includes("gif")
           ? "gif"
           : extFromName;
-    const filePath = `${userId}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 10)}.${fallbackExt}`;
+    const uploadId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : newClientUuid();
+    const filePath = `${userId}/${uploadId}.${fallbackExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("post-images")
@@ -848,8 +874,20 @@ function App() {
 
   const handleAddComment = async (postId, commentText) => {
     if (!commentText.trim()) return;
+    if (!session?.user?.id) {
+      setApiError("Please sign in to comment on posts.");
+      return;
+    }
+    const commentAuthorName =
+      profile?.full_name?.trim() ||
+      profile?.username?.trim() ||
+      profile?.email?.trim() ||
+      "Anonymous";
     const previousPosts = posts;
-    const updatedPosts = addComment(posts, postId, commentText);
+    const updatedPosts = addComment(posts, postId, commentText, {
+      userId: session.user.id,
+      name: commentAuthorName,
+    });
 
     setPosts(updatedPosts);
 
@@ -1028,11 +1066,7 @@ function App() {
                       onLike={handleLike}
                       onToggleComments={handleToggleComments}
                       onAddComment={handleAddComment}
-                      onOpenProfile={
-                        post.role === "Organization"
-                          ? handleOpenOrganization
-                          : undefined
-                      }
+                      onOpenProfile={handleOpenOrganization}
                     />
                   ))
                 )}

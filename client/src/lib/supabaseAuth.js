@@ -69,7 +69,11 @@ export const checkUsernameAvailable = async (username) => {
 
 export const uploadAvatarFile = async (file, userId) => {
   const extension = file.name.split(".").pop();
-  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+  const uploadId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${userId}`;
+  const safeName = `${uploadId}.${extension}`;
   const filePath = `${userId}/${safeName}`;
 
   const { error } = await supabase.storage

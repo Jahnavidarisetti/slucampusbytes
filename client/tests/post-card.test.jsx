@@ -48,4 +48,23 @@ describe("PostCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Campus Robotics" }));
     expect(onOpenProfile).toHaveBeenCalledWith("org-profile-1");
   });
+
+  it("renders commenter identity above comment text", () => {
+    render(
+      <PostCard
+        post={buildPost({
+          showComments: true,
+          comments: [
+            { id: "comment-1", author_name: "Health SLU", text: "See you there!" },
+          ],
+        })}
+        onLike={() => {}}
+        onToggleComments={() => {}}
+        onAddComment={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Health SLU")).toBeTruthy();
+    expect(screen.getByText("See you there!")).toBeTruthy();
+  });
 });

@@ -6,7 +6,7 @@ const {
   validateCreatePostPayload,
 } = require('../utils/postValidation');
 const {
-  rewriteDescriptionWithGemini,
+  rewriteDescriptionWithGeminiFallback,
   validateRewriteDescriptionPayload,
 } = require('../utils/aiRewrite');
 
@@ -46,17 +46,14 @@ router.post('/ai/rewrite-description', async (req, res) => {
   }
 
   try {
-    const description = await rewriteDescriptionWithGemini({
+    const description = await rewriteDescriptionWithGeminiFallback({
       description: validation.normalizedDescription,
       tone: validation.normalizedTone,
     });
 
     return res.json({ ok: true, description });
   } catch (error) {
-    const statusCode = Number.isInteger(error.statusCode)
-      ? error.statusCode
-      : 500;
-    return res.status(statusCode).json({ ok: false, error: error.message });
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 
@@ -75,6 +72,7 @@ function normalizePost(post) {
 
   return {
     id: post.id,
+    user_id: post.user_id ?? null,
     title: typeof post.title === 'string' ? post.title : '',
     organization_name: organizationName,
     description:
@@ -84,6 +82,8 @@ function normalizePost(post) {
           ? post.content
           : '',
     image_url: typeof post.image_url === 'string' ? post.image_url : null,
+    avatar_url: typeof profile?.avatar_url === 'string' ? profile.avatar_url : null,
+    role: typeof profile?.role === 'string' ? profile.role : null,
     content: typeof post.content === 'string' ? post.content : '',
     created_at: post.created_at,
     likes: Number(post.likes ?? 0),
@@ -106,48 +106,48 @@ async function selectPostsWithFallback({ id = null, limit = null } = {}) {
   const selectAttempts = [
     {
       selection:
-        'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)',
+        'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
       sortBy: 'created_at',
     },
     {
       selection:
-        'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)',
+        'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, title, description, image_url, created_at, likes, liked_by, comments',
+      selection: 'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, title, description, image_url, created_at, likes',
+      selection: 'id, user_id, content, title, description, image_url, created_at, likes',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, created_at, likes, comments',
+      selection: 'id, user_id, content, created_at, likes, comments',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, created_at, likes',
+      selection: 'id, user_id, content, created_at, likes',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, created_at',
+      selection: 'id, user_id, content, created_at',
       sortBy: 'created_at',
     },
     {
-      selection: 'id, content, likes, comments',
+      selection: 'id, user_id, content, likes, comments',
       sortBy: 'id',
     },
     {
-      selection: 'id, content, likes, liked_by, comments',
+      selection: 'id, user_id, content, likes, liked_by, comments',
       sortBy: 'id',
     },
     {
-      selection: 'id, content, likes',
+      selection: 'id, user_id, content, likes',
       sortBy: 'id',
     },
     {
-      selection: 'id, content',
+      selection: 'id, user_id, content',
       sortBy: 'id',
     },
   ];
@@ -220,18 +220,18 @@ function compactInsertPayload(payload, level) {
 
 async function insertPostWithFallback(payload) {
   const selectAttempts = [
-    'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)',
-    'id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email)',
-    'id, content, title, description, image_url, created_at, likes, liked_by, comments',
-    'id, content, title, description, image_url, created_at, likes',
-    'id, content, created_at, likes, liked_by, comments',
-    'id, content, created_at, likes',
-    'id, content, created_at, likes, liked_by',
-    'id, content, created_at',
-    'id, content, likes, liked_by, comments',
-    'id, content, likes',
-    'id, content, liked_by',
-    'id, content'
+    'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)',
+    'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(username, email, avatar_url, role)',
+    'id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments',
+    'id, user_id, content, title, description, image_url, created_at, likes',
+    'id, user_id, content, created_at, likes, liked_by, comments',
+    'id, user_id, content, created_at, likes',
+    'id, user_id, content, created_at, likes, liked_by',
+    'id, user_id, content, created_at',
+    'id, user_id, content, likes, liked_by, comments',
+    'id, user_id, content, likes',
+    'id, user_id, content, liked_by',
+    'id, user_id, content'
   ];
 
   let lastError = null;
@@ -410,7 +410,7 @@ router.patch('/posts/:id', async (req, res) => {
       .from('posts')
       .update(updates)
       .eq('id', id)
-      .select('id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email)')
+      .select('id, user_id, content, title, description, image_url, created_at, likes, liked_by, comments, profiles(full_name, username, email, avatar_url, role)')
       .single();
 
     if (error && schemaCompatibilityError(error)) {
@@ -429,7 +429,7 @@ router.patch('/posts/:id', async (req, res) => {
         .from('posts')
         .update({ likes: updates.likes })
         .eq('id', id)
-        .select('id, content, created_at, likes')
+        .select('id, user_id, content, created_at, likes')
         .single();
 
       data = fallback.data;

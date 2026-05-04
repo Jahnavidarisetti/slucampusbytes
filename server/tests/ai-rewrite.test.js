@@ -1,7 +1,9 @@
 const assert = require('node:assert/strict');
 
 const {
+  buildDeterministicToneRewrite,
   extractGeminiText,
+  rewriteDescriptionWithGeminiFallback,
   rewriteDescriptionWithGemini,
   validateRewriteDescriptionPayload,
 } = require('../utils/aiRewrite');
@@ -116,6 +118,60 @@ test('calls Gemini and returns rewritten text', async () => {
   assert.equal(body.generationConfig.temperature, 0.3);
   assert.equal(body.generationConfig.thinkingConfig.thinkingBudget, 0);
   assert.equal(rewritten, 'Get ready for the club fair this Thursday at 5 PM.');
+});
+
+test('retries Gemini request for transient failures', async () => {
+  process.env.GEMINI_API_KEY = 'test-key';
+  process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+
+  let attempts = 0;
+  const rewritten = await rewriteDescriptionWithGemini({
+    description: 'Student government election is this Wednesday.',
+    tone: 'professional',
+    fetchImpl: async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        return {
+          ok: false,
+          status: 503,
+          json: async () => ({ error: { message: 'temporarily unavailable' } }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'Please note: student government election is this Wednesday.' }] } }],
+        }),
+      };
+    },
+    baseDelayMs: 1,
+  });
+
+  assert.equal(attempts, 3);
+  assert.match(rewritten, /student government election/i);
+});
+
+test('falls back to deterministic local rewrite when Gemini fails', async () => {
+  process.env.GEMINI_API_KEY = 'test-key';
+  process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+
+  const rewritten = await rewriteDescriptionWithGeminiFallback({
+    description: 'Join us in the quad at noon for free snacks',
+    tone: 'friendly',
+    fetchImpl: async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: { message: 'service unavailable' } }),
+    }),
+  });
+
+  assert.equal(
+    rewritten,
+    buildDeterministicToneRewrite({
+      description: 'Join us in the quad at noon for free snacks',
+      tone: 'friendly',
+    })
+  );
 });
 
 async function run() {
