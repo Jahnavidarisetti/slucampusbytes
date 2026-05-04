@@ -153,6 +153,71 @@ describe("OrganizationsPage", () => {
     expect(await screen.findByRole("button", { name: "Follow" })).toBeInTheDocument();
   });
 
+  it("sorts organizations by relevance, featured activity, and likes", async () => {
+    fetchOrganizationSummaries.mockResolvedValue([
+      {
+        id: "organization-relevant",
+        profile_id: "org-profile-relevant",
+        username: "honors",
+        name: "Honors Board",
+        description: "Student leadership",
+        logo_url: null,
+        followers_count: 4,
+        posts_count: 1,
+        likes_count: 3,
+        comments_count: 1,
+        is_following: true,
+      },
+      {
+        id: "organization-featured",
+        profile_id: "org-profile-featured",
+        username: "service",
+        name: "Service Coalition",
+        description: "Volunteer events",
+        logo_url: null,
+        followers_count: 40,
+        posts_count: 8,
+        likes_count: 12,
+        comments_count: 9,
+        is_following: false,
+      },
+      {
+        id: "organization-liked",
+        profile_id: "org-profile-liked",
+        username: "music",
+        name: "Music Guild",
+        description: "Concert nights",
+        logo_url: null,
+        followers_count: 5,
+        posts_count: 2,
+        likes_count: 80,
+        comments_count: 2,
+        is_following: false,
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <OrganizationsPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Honors Board");
+    expect(screen.getAllByRole("heading", { level: 2 })[0]).toHaveTextContent(
+      "Honors Board"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Most Featured" }));
+    expect(screen.getAllByRole("heading", { level: 2 })[0]).toHaveTextContent(
+      "Service Coalition"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Most Liked" }));
+    expect(screen.getAllByRole("heading", { level: 2 })[0]).toHaveTextContent(
+      "Music Guild"
+    );
+  });
+
   it("opens organization detail when a card is clicked", async () => {
     fetchOrganizationSummaries.mockResolvedValue([
       {

@@ -8,9 +8,70 @@ import {
 } from "../api/organizations";
 import { supabase } from "../supabaseClient";
 
+const ORGANIZATION_FILTERS = [
+  { value: "relevant", label: "Most Relevant" },
+  { value: "featured", label: "Most Featured" },
+  { value: "liked", label: "Most Liked" },
+];
+
+function metricValue(organization, key) {
+  const value = Number(organization[key] ?? 0);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function organizationName(organization) {
+  return (organization.name || organization.username || "").toLowerCase();
+}
+
+function relevanceScore(organization) {
+  return (
+    (organization.is_following ? 1000 : 0) +
+    metricValue(organization, "posts_count") * 8 +
+    metricValue(organization, "followers_count") * 4 +
+    metricValue(organization, "likes_count") * 2 +
+    metricValue(organization, "comments_count") * 3
+  );
+}
+
+function featuredScore(organization) {
+  return (
+    metricValue(organization, "followers_count") * 6 +
+    metricValue(organization, "posts_count") * 10 +
+    metricValue(organization, "comments_count") * 2
+  );
+}
+
+function compareByScore(left, right, scoreFor) {
+  const scoreDelta = scoreFor(right) - scoreFor(left);
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+
+  return organizationName(left).localeCompare(organizationName(right));
+}
+
+function sortOrganizationsByFilter(organizations, filter) {
+  const sorted = [...organizations];
+
+  if (filter === "featured") {
+    return sorted.sort((left, right) => compareByScore(left, right, featuredScore));
+  }
+
+  if (filter === "liked") {
+    return sorted.sort((left, right) =>
+      compareByScore(right, left, (organization) =>
+        -metricValue(organization, "likes_count")
+      )
+    );
+  }
+
+  return sorted.sort((left, right) => compareByScore(left, right, relevanceScore));
+}
+
 export default function OrganizationsPage() {
   const navigate = useNavigate();
   const [organizations, setOrganizations] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("relevant");
   const [sessionUserId, setSessionUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -73,6 +134,11 @@ export default function OrganizationsPage() {
         { organizations: 0, posts: 0, followers: 0 }
       ),
     [organizations]
+  );
+
+  const visibleOrganizations = useMemo(
+    () => sortOrganizationsByFilter(organizations, activeFilter),
+    [organizations, activeFilter]
   );
 
   const handleOpenOrganization = (organization) => {
@@ -165,6 +231,28 @@ export default function OrganizationsPage() {
             </p>
           </div>
 
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            {ORGANIZATION_FILTERS.map((filter) => {
+              const isActive = activeFilter === filter.value;
+
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setActiveFilter(filter.value)}
+                  aria-pressed={isActive}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+
           {actionError && (
             <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               {actionError}
@@ -179,13 +267,13 @@ export default function OrganizationsPage() {
             <div className="rounded-md border border-red-200 bg-red-50 p-8 text-center text-red-700">
               {error}
             </div>
-          ) : organizations.length === 0 ? (
+          ) : visibleOrganizations.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/85 p-8 text-center text-slate-600">
               No organizations are available yet.
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {organizations.map((organization) => (
+              {visibleOrganizations.map((organization) => (
                 <OrganizationCard
                   key={organization.id}
                   organization={organization}
