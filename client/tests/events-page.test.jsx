@@ -105,6 +105,7 @@ describe("EventsPage", () => {
         image: null,
       })
     );
+    expect(navigate).not.toHaveBeenCalled();
     expect(screen.getByText(/Service Day added to Calendar/i)).toBeInTheDocument();
   });
 });

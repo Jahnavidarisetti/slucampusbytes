@@ -20,18 +20,13 @@ function EventCard({ event, onOpen, onAddToCalendar, actionLabel = "Add to Calen
 
   return (
     <article
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(event)}
-      onKeyDown={(keyEvent) => {
-        if (keyEvent.key === "Enter" || keyEvent.key === " ") {
-          keyEvent.preventDefault();
-          onOpen(event);
-        }
-      }}
-      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+      className="flex h-full flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
     >
-      <div className="block w-full text-left">
+      <button
+        type="button"
+        onClick={() => onOpen(event)}
+        className="block w-full flex-1 cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-200"
+      >
         <div className="aspect-[16/9] w-full bg-slate-100">
           {event.image ? (
             <img
@@ -53,7 +48,7 @@ function EventCard({ event, onOpen, onAddToCalendar, actionLabel = "Add to Calen
             {event.title || "Untitled event"}
           </h2>
         </div>
-      </div>
+      </button>
       <div className="mt-auto flex justify-end border-t border-slate-100 p-4 pt-3">
         <button
           type="button"
