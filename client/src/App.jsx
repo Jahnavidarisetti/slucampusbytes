@@ -90,7 +90,7 @@ function mapPostFromApi(post) {
         embeddedProfile.username.trim()) ||
       emailName ||
       (typeof post.club_name === "string" && post.club_name.trim()) ||
-      "CampusConnect",
+      "CampusBytes",
     title:
       (typeof post.title === "string" && post.title.trim()) ||
       parsedLegacy.title ||
@@ -135,7 +135,7 @@ function mergePersistedPost(previousPost, persistedPost) {
       : "";
   const shouldPreservePreviousOrgName =
     previousOrgName &&
-    (!mappedOrgName || mappedOrgName === "CampusConnect");
+    (!mappedOrgName || mappedOrgName === "CampusBytes");
 
   return {
     ...mapped,
@@ -737,7 +737,7 @@ function App() {
           (typeof profile?.full_name === "string" && profile.full_name.trim()) ||
           (typeof profile?.username === "string" && profile.username.trim()) ||
           (typeof profile?.email === "string" && profile.email.trim()) ||
-          "CampusConnect";
+          "CampusBytes";
 
         setPosts((prevPosts) => [
           mapPostFromApi({
@@ -768,7 +768,7 @@ function App() {
           (typeof profile?.full_name === "string" && profile.full_name.trim()) ||
           (typeof profile?.username === "string" && profile.username.trim()) ||
           (typeof profile?.email === "string" && profile.email.trim()) ||
-          "CampusConnect";
+          "CampusBytes";
 
         setPosts((prevPosts) => [
           mapPostFromApi({
@@ -978,13 +978,13 @@ function App() {
             <img
               src="/logo.png"
               alt="logo"
-              className="h-8 w-8 object-contain"
+              className="h-15 w-15 object-contain"
             />
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold text-slate-800 leading-tight">
-                CampusConnect
+                CampusBytes
               </h1>
-              <p className="text-xs text-slate-500">Campus posts and org updates</p>
+              <p className="text-xs text-slate-600">Campus posts and org updates</p>
             </div>
           </div>
 
@@ -1117,7 +1117,7 @@ function App() {
 
       {isComposerOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-3 py-6 backdrop-blur-sm sm:px-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-3 py-6 backdrop-blur-sm sm:px-6"
         >
           <div
             className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/40 bg-gradient-to-br from-sky-50 via-white to-cyan-50 p-5 shadow-2xl sm:p-6"
@@ -1150,7 +1150,7 @@ function App() {
                     setSuccessMessage("");
                   }}
                   placeholder="Enter an announcement title"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                 />
                 <p className="text-xs text-slate-500">
                   {titleLength}/{TITLE_MAX_LENGTH}
@@ -1166,7 +1166,7 @@ function App() {
                   type="file"
                   accept={ACCEPTED_IMAGE_MIME_TYPES.join(",")}
                   onChange={handleImageChange}
-                  className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-sky-700 hover:border-sky-300"
+                  className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-sky-900 hover:border-sky-300"
                 />
                 <p className="text-xs text-slate-500">
                   Accepted: JPG, PNG, WEBP, GIF. Max size: {Math.floor(MAX_IMAGE_SIZE_BYTES / (1024 * 1024))}MB.
@@ -1196,7 +1196,7 @@ function App() {
                       aria-label="Description tone"
                       value={descriptionTone}
                       onChange={(event) => setDescriptionTone(event.target.value)}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                     >
                       {DESCRIPTION_TONE_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -1208,7 +1208,7 @@ function App() {
                       type="button"
                       onClick={handleRewriteDescriptionTone}
                       disabled={!postDescription.trim() || isRewritingDescription}
-                      className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isRewritingDescription ? "Rewriting..." : "Rewrite Tone"}
                     </button>
@@ -1224,7 +1224,7 @@ function App() {
                     setSuccessMessage("");
                   }}
                   placeholder="Write the full post details for students..."
-                  className="min-h-[150px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+                  className="min-h-[150px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                 />
                 <p className="text-xs text-slate-500">
                   {descriptionLength}/{DESCRIPTION_MAX_LENGTH}
@@ -1248,7 +1248,7 @@ function App() {
                 <button
                   type="submit"
                   disabled={isComposerSubmitDisabled}
-                  className="rounded-xl bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-gradient-to-r from-sky-900 via-cyan-600 to-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/50 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingCreate ? "Posting..." : "Send Post"}
                 </button>
