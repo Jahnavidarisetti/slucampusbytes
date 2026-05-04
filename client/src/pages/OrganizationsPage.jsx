@@ -1,32 +1,111 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AvatarBadge from "../components/AvatarBadge";
+import OrganizationCard from "../components/OrganizationCard";
 import {
-  fetchFollowerCount,
-  fetchOrganizations,
+  fetchOrganizationSummaries,
+  followOrganization,
+  unfollowOrganization,
 } from "../api/organizations";
+import { supabase } from "../supabaseClient";
+
+const ORGANIZATION_FILTERS = [
+  { value: "relevant", label: "Most Relevant" },
+  { value: "featured", label: "Most Featured" },
+  { value: "liked", label: "Most Liked" },
+];
+
+function metricValue(organization, key) {
+  const value = Number(organization[key] ?? 0);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function organizationName(organization) {
+  return (organization.name || organization.username || "").toLowerCase();
+}
+
+function relevanceScore(organization) {
+  return (
+    (organization.is_following ? 1000 : 0) +
+    metricValue(organization, "posts_count") * 8 +
+    metricValue(organization, "followers_count") * 4 +
+    metricValue(organization, "likes_count") * 2 +
+    metricValue(organization, "comments_count") * 3
+  );
+}
+
+function featuredScore(organization) {
+  return (
+    metricValue(organization, "followers_count") * 6 +
+    metricValue(organization, "posts_count") * 10 +
+    metricValue(organization, "comments_count") * 2
+  );
+}
+
+function compareByScore(left, right, scoreFor) {
+  const scoreDelta = scoreFor(right) - scoreFor(left);
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+
+  return organizationName(left).localeCompare(organizationName(right));
+}
+
+function sortOrganizationsByFilter(organizations, filter) {
+  const sorted = [...organizations];
+
+  if (filter === "featured") {
+    return sorted.sort((left, right) =>
+      compareByScore(left, right, featuredScore)
+    );
+  }
+
+  if (filter === "liked") {
+    return sorted.sort((left, right) =>
+      compareByScore(right, left, (organization) =>
+        -metricValue(organization, "likes_count")
+      )
+    );
+  }
+
+  return sorted.sort((left, right) =>
+    compareByScore(left, right, relevanceScore)
+  );
+}
 
 function OrganizationCardSkeleton() {
   return (
     <div
       data-testid="organizations-page-skeleton"
-      className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm"
+      className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
     >
       <div className="flex items-start gap-4 animate-pulse">
         <div className="h-16 w-16 rounded-full bg-slate-200" />
         <div className="flex-1 space-y-3">
           <div className="h-6 w-40 rounded-full bg-slate-200" />
-          <div className="h-4 w-full rounded-full bg-slate-100" />
-          <div className="h-4 w-3/4 rounded-full bg-slate-100" />
+          <div className="h-4 w-28 rounded-full bg-slate-100" />
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 animate-pulse">
-        <div className="space-y-2">
-          <div className="h-3 w-24 rounded-full bg-slate-200" />
-          <div className="h-6 w-10 rounded-full bg-slate-200" />
-        </div>
-        <div className="h-4 w-24 rounded-full bg-slate-200" />
+      <div className="mt-4 space-y-2 animate-pulse">
+        <div className="h-4 w-full rounded-full bg-slate-100" />
+        <div className="h-4 w-5/6 rounded-full bg-slate-100" />
+        <div className="h-4 w-2/3 rounded-full bg-slate-100" />
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 animate-pulse">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-md border border-slate-100 bg-slate-50 px-3 py-3"
+          >
+            <div className="h-6 w-10 rounded-full bg-slate-200" />
+            <div className="mt-2 h-3 w-20 rounded-full bg-slate-100" />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex justify-end animate-pulse">
+        <div className="h-9 w-24 rounded-full bg-slate-200" />
       </div>
     </div>
   );
@@ -35,9 +114,12 @@ function OrganizationCardSkeleton() {
 export default function OrganizationsPage() {
   const navigate = useNavigate();
   const [organizations, setOrganizations] = useState([]);
-  const [followerCounts, setFollowerCounts] = useState({});
+  const [activeFilter, setActiveFilter] = useState("relevant");
+  const [sessionUserId, setSessionUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [followLoadingId, setFollowLoadingId] = useState(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -45,27 +127,30 @@ export default function OrganizationsPage() {
     async function loadOrganizations() {
       setLoading(true);
       setError("");
+      setActionError("");
 
       try {
-        const orgs = await fetchOrganizations();
-        const followerEntries = await Promise.all(
-          orgs.map(async (organization) => [
-            organization.id,
-            await fetchFollowerCount(organization.id),
-          ])
-        );
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const currentUserId = session?.user?.id ?? null;
+        const summaries = await fetchOrganizationSummaries(currentUserId);
 
         if (!isMounted) {
           return;
         }
 
-        setOrganizations(orgs);
-        setFollowerCounts(Object.fromEntries(followerEntries));
+        setSessionUserId(currentUserId);
+        setOrganizations(
+          summaries.map((organization) => ({
+            ...organization,
+            is_own_organization:
+              Boolean(currentUserId) && organization.profile_id === currentUserId,
+          }))
+        );
       } catch (loadError) {
         if (isMounted) {
-          setError(
-            loadError.message || "Unable to load organizations right now."
-          );
+          setError(loadError.message || "Unable to load organizations.");
         }
       } finally {
         if (isMounted) {
@@ -81,96 +166,175 @@ export default function OrganizationsPage() {
     };
   }, []);
 
+  const totals = useMemo(
+    () =>
+      organizations.reduce(
+        (summary, organization) => ({
+          organizations: summary.organizations + 1,
+          posts: summary.posts + Number(organization.posts_count ?? 0),
+          followers: summary.followers + Number(organization.followers_count ?? 0),
+        }),
+        { organizations: 0, posts: 0, followers: 0 }
+      ),
+    [organizations]
+  );
+
+  const visibleOrganizations = useMemo(
+    () => sortOrganizationsByFilter(organizations, activeFilter),
+    [organizations, activeFilter]
+  );
+
+  const handleOpenOrganization = (organization) => {
+    navigate(`/organizations/${organization.id}`, {
+      state: { fromOrganizations: true },
+    });
+  };
+
+  const handleToggleFollow = async (organization) => {
+    if (!sessionUserId || organization.is_own_organization) {
+      return;
+    }
+
+    const nextFollowing = !organization.is_following;
+    setFollowLoadingId(organization.id);
+    setActionError("");
+    setOrganizations((currentOrganizations) =>
+      currentOrganizations.map((item) =>
+        item.id === organization.id
+          ? {
+              ...item,
+              is_following: nextFollowing,
+              followers_count: Math.max(
+                0,
+                Number(item.followers_count ?? 0) + (nextFollowing ? 1 : -1)
+              ),
+            }
+          : item
+      )
+    );
+
+    try {
+      if (nextFollowing) {
+        await followOrganization(sessionUserId, organization.id);
+      } else {
+        await unfollowOrganization(sessionUserId, organization.id);
+      }
+    } catch (followError) {
+      setOrganizations((currentOrganizations) =>
+        currentOrganizations.map((item) =>
+          item.id === organization.id
+            ? {
+                ...item,
+                is_following: !nextFollowing,
+                followers_count: Math.max(
+                  0,
+                  Number(item.followers_count ?? 0) + (nextFollowing ? -1 : 1)
+                ),
+              }
+            : item
+        )
+      );
+      setActionError(followError.message || "Unable to update follow status.");
+    } finally {
+      setFollowLoadingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 px-4 py-8">
-      <div className="mx-auto max-w-6xl rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.18)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             Back to Dashboard
           </button>
 
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Organizations
-            </h1>
-            <p className="text-sm text-slate-500">
-              Browse campus clubs, departments, and official groups.
-            </p>
+          <div className="flex flex-wrap gap-2 text-sm text-slate-700">
+            <span className="rounded-full bg-white/85 px-3 py-1 shadow-sm">
+              {totals.organizations} organizations
+            </span>
+            <span className="rounded-full bg-white/85 px-3 py-1 shadow-sm">
+              {totals.posts} posts
+            </span>
+            <span className="rounded-full bg-white/85 px-3 py-1 shadow-sm">
+              {totals.followers} followers
+            </span>
           </div>
         </div>
 
-        {loading ? (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <OrganizationCardSkeleton key={index} />
-            ))}
+        <section className="rounded-md border border-white/70 bg-white/80 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.14)] backdrop-blur">
+          <div className="mb-6">
+            <h1 className="text-3xl font-semibold text-slate-900">
+              Organizations
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Browse campus organizations, see their activity, and follow the
+              groups you want in your feed.
+            </p>
           </div>
-        ) : error ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-            {error}
-          </div>
-        ) : organizations.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/80 p-8 text-center text-slate-600">
-            No organizations are available yet.
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {organizations.map((organization) => (
-              <button
-                key={organization.id}
-                type="button"
-                onClick={() =>
-                  navigate(`/organizations/${organization.id}`, {
-                    state: { fromOrganizations: true },
-                  })
-                }
-                className="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-lg"
-              >
-                <div className="flex items-start gap-4">
-                  <AvatarBadge
-                    src={organization.logo_url}
-                    label={organization.name || organization.username || "Organization"}
-                    size="lg"
-                  />
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-lg font-semibold text-slate-900">
-                        {organization.name || organization.username || "Organization"}
-                      </h2>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-                        Organization
-                      </span>
-                    </div>
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            {ORGANIZATION_FILTERS.map((filter) => {
+              const isActive = activeFilter === filter.value;
 
-                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
-                      {organization.description ||
-                        "Visit this organization page to see followers, posts, and campus updates."}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                      Followers
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {followerCounts[organization.id] ?? 0}
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-sky-700">
-                    View profile
-                  </span>
-                </div>
-              </button>
-            ))}
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setActiveFilter(filter.value)}
+                  aria-pressed={isActive}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
           </div>
-        )}
+
+          {actionError && (
+            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {actionError}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="sr-only" aria-live="polite">
+                Loading organizations...
+              </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <OrganizationCardSkeleton key={index} />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-8 text-center text-red-700">
+              {error}
+            </div>
+          ) : visibleOrganizations.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white/85 p-8 text-center text-slate-600">
+              No organizations are available yet.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleOrganizations.map((organization) => (
+                <OrganizationCard
+                  key={organization.id}
+                  organization={organization}
+                  onOpen={handleOpenOrganization}
+                  onFollow={handleToggleFollow}
+                  followLoading={followLoadingId === organization.id}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

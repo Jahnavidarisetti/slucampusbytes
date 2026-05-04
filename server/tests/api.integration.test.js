@@ -12,7 +12,44 @@ function clearModule(modulePath) {
 
 function createInMemorySupabase() {
   const state = {
-    posts: [],
+    organizations: [
+      {
+        id: 'organization-1',
+        profile_id: 'org-profile-1',
+        username: 'acm',
+        name: 'ACM',
+        description: 'Computer science events',
+        logo_url: 'https://example.com/acm.png',
+        created_at: '2026-04-01T12:00:00.000Z',
+      },
+      {
+        id: 'organization-2',
+        profile_id: 'org-profile-2',
+        username: 'robotics',
+        name: 'Robotics Club',
+        description: 'Build nights',
+        logo_url: null,
+        created_at: '2026-04-02T12:00:00.000Z',
+      },
+    ],
+    organization_followers: [
+      { user_id: 'student-1', organization_id: 'organization-1' },
+      { user_id: 'student-2', organization_id: 'organization-1' },
+    ],
+    posts: [
+      {
+        id: 'seed-post-1',
+        user_id: 'org-profile-1',
+        content: 'Welcome',
+        title: 'Welcome',
+        description: 'Welcome to ACM',
+        image_url: null,
+        likes: 6,
+        liked_by: [],
+        comments: [{ id: 'comment-1', text: 'Nice' }, { id: 'comment-2', text: 'See you' }],
+        created_at: '2026-04-03T12:00:00.000Z',
+      },
+    ],
   };
 
   function selectColumns(record, selection) {
@@ -41,6 +78,18 @@ function createInMemorySupabase() {
                 return Promise.resolve({ data: [{ id: 'profile-1' }], error: null });
               },
             };
+          },
+        };
+      }
+
+      if (table === 'organizations' || table === 'organization_followers') {
+        return {
+          select(selection) {
+            const rows = state[table].map((record) =>
+              selectColumns(record, selection)
+            );
+
+            return Promise.resolve({ data: rows, error: null });
           },
         };
       }
@@ -85,6 +134,14 @@ function createInMemorySupabase() {
             return Promise.resolve({ data: rows, error: null });
           }
           return this;
+        },
+        then(resolve, reject) {
+          if (context.action === 'select' && !context.filter) {
+            const rows = state.posts.map((post) => selectColumns(post, context.selection));
+            return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+          }
+
+          return Promise.resolve({ data: null, error: null }).then(resolve, reject);
         },
         single() {
           if (context.action === 'insert') {
@@ -238,6 +295,23 @@ async function run() {
     assert.equal(rewriteBody.ok, true);
     assert.equal(typeof rewriteBody.description, 'string');
     assert.ok(rewriteBody.description.length > 0);
+
+    const organizationsResponse = await fetch(
+      `${server.baseUrl}/api/organizations?user_id=student-1`
+    );
+    const organizationsBody = await organizationsResponse.json();
+    const acm = organizationsBody.organizations.find(
+      (organization) => organization.id === 'organization-1'
+    );
+
+    assert.equal(organizationsResponse.status, 200);
+    assert.equal(organizationsBody.ok, true);
+    assert.equal(organizationsBody.organizations.length, 2);
+    assert.equal(acm.followers_count, 2);
+    assert.equal(acm.posts_count, 1);
+    assert.equal(acm.likes_count, 6);
+    assert.equal(acm.comments_count, 2);
+    assert.equal(acm.is_following, true);
 
     console.log('PASS API integration test');
   } catch (error) {
