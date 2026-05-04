@@ -11,6 +11,7 @@ import "./index.css";
 import App from "./App.jsx";
 import AuthPage from "./pages/AuthPage";
 import OrganizationDetailsPage from "./pages/OrganizationDetailsPage";
+import OrganizationsPage from "./pages/OrganizationsPage";
 import { supabase } from "./supabaseClient";
 
 function RequireAuth({ children }) {
@@ -67,6 +68,14 @@ createRoot(document.getElementById("root")).render(
           element={
             <RequireAuth>
               <App />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/organizations"
+          element={
+            <RequireAuth>
+              <OrganizationsPage />
             </RequireAuth>
           }
         />

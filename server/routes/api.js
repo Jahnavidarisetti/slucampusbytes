@@ -9,6 +9,9 @@ const {
   rewriteDescriptionWithGeminiFallback,
   validateRewriteDescriptionPayload,
 } = require('../utils/aiRewrite');
+const {
+  buildOrganizationSummaries,
+} = require('../utils/organizationMetrics');
 
 // Test GET route
 router.get('/test', (req, res) => {
@@ -34,6 +37,45 @@ router.get('/supabase/health', async (req, res) => {
     }
 
     return res.json({ ok: true, rows: data.length });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/organizations', async (req, res) => {
+  try {
+    const currentUserId =
+      typeof req.query.user_id === 'string' && req.query.user_id.trim()
+        ? req.query.user_id.trim()
+        : null;
+
+    const [organizationsResult, followersResult, postsResult] = await Promise.all([
+      supabase
+        .from('organizations')
+        .select('id, profile_id, username, name, description, logo_url, created_at'),
+      supabase
+        .from('organization_followers')
+        .select('user_id, organization_id'),
+      supabase
+        .from('posts')
+        .select('id, user_id, likes, comments'),
+    ]);
+
+    const firstError =
+      organizationsResult.error || followersResult.error || postsResult.error;
+
+    if (firstError) {
+      return res.status(500).json({ ok: false, error: firstError.message });
+    }
+
+    const organizations = buildOrganizationSummaries({
+      organizations: organizationsResult.data || [],
+      followers: followersResult.data || [],
+      posts: postsResult.data || [],
+      currentUserId,
+    });
+
+    return res.json({ ok: true, organizations });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
   }
