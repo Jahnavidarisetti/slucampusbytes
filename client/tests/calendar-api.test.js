@@ -50,4 +50,47 @@ describe("calendar api", () => {
     expect(result.removed).toBe(true);
     expect(events).toEqual([]);
   });
+
+  it("prunes expired events when calendar events are loaded", async () => {
+    localStorage.setItem(
+      "campusbytes:calendar:student-1",
+      JSON.stringify([
+        {
+          postId: "expired-post",
+          title: "Old Fair",
+          eventDate: "2000-01-01",
+          image: null,
+        },
+        {
+          postId: "upcoming-post",
+          title: "Future Fair",
+          eventDate: "2099-05-20",
+          image: null,
+        },
+      ])
+    );
+
+    const events = await fetchCalendarEvents("student-1");
+    const persistedEvents = JSON.parse(
+      localStorage.getItem("campusbytes:calendar:student-1")
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        postId: "upcoming-post",
+      }),
+    ]);
+    expect(persistedEvents).toEqual(events);
+  });
+
+  it("rejects saving expired events", async () => {
+    await expect(
+      saveCalendarEvent("student-1", {
+        postId: "expired-post",
+        title: "Old Fair",
+        eventDate: "2000-01-01",
+        image: null,
+      })
+    ).rejects.toThrow(/expired/i);
+  });
 });

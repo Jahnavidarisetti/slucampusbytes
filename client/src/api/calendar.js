@@ -1,3 +1,5 @@
+import { isPastEventDate } from "../lib/postComposerUtils";
+
 const CALENDAR_STORAGE_PREFIX = "campusbytes:calendar:";
 
 function storageKey(userId) {
@@ -21,7 +23,14 @@ function writeEvents(userId, events) {
 }
 
 export async function fetchCalendarEvents(userId) {
-  return readEvents(userId).sort((a, b) =>
+  const events = readEvents(userId);
+  const upcomingEvents = events.filter((event) => !isPastEventDate(event.eventDate));
+
+  if (upcomingEvents.length !== events.length) {
+    writeEvents(userId, upcomingEvents);
+  }
+
+  return upcomingEvents.sort((a, b) =>
     String(a.eventDate || "").localeCompare(String(b.eventDate || ""))
   );
 }
@@ -36,6 +45,10 @@ export async function saveCalendarEvent(userId, event) {
 
   if (!normalized.postId || !normalized.eventDate) {
     throw new Error("Calendar event requires a post and event date.");
+  }
+
+  if (isPastEventDate(normalized.eventDate)) {
+    throw new Error("Expired events cannot be added to Calendar.");
   }
 
   const events = readEvents(userId);
