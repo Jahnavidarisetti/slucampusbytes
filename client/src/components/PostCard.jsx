@@ -1,5 +1,7 @@
 ﻿import AvatarBadge from "./AvatarBadge";
 
+import { formatEventDate } from "./EventCard";
+
 function formatPostDate(createdAt) {
   if (!createdAt) return "Campus update";
 
@@ -46,6 +48,12 @@ function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile 
         <h4 className="mb-2 text-lg font-bold tracking-tight text-slate-900">
           {post.title}
         </h4>
+      )}
+
+      {post.eventDate && (
+        <p className="mb-3 rounded-md bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800">
+          Event Date: {formatEventDate(post.eventDate)}
+        </p>
       )}
 
       <p className="mb-3 whitespace-pre-wrap text-slate-700">{post.content}</p>
