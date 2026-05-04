@@ -11,17 +11,20 @@ SLU Campus Bytes is a full-stack starter project for a campus-focused experience
 .
 ├─ client/                # React + Vite frontend
 │  ├─ src/                # App, styles, assets
+│  ├─ Dockerfile          # Client development container
 │  └─ package.json        # Client scripts and dependencies
 ├─ server/                # Express + Socket.IO backend
 │  ├─ routes/             # API route definitions
+│  ├─ Dockerfile          # Server development container
 │  ├─ index.js            # Server entry point
 │  ├─ supabaseClient.js   # Server-side Supabase client
 │  └─ .env                # Server environment variables
+├─ docker-compose.yml     # Local Docker development setup
 ```
 
 ## Prerequisites
-- Node.js 20+
-- npm (bundled with Node.js)
+- Node.js 20+ and npm for the non-Docker local workflow
+- Docker Desktop or Docker Engine with Docker Compose for the Docker workflow
 
 ## Setup
 Install dependencies for both frontend and backend:
@@ -54,6 +57,64 @@ Open the app at:
 http://localhost:5173
 ```
 
+## Run with Docker
+Docker Compose starts both development servers without installing Node dependencies on your host machine. Supabase remains external and is configured with environment variables.
+
+Create local environment files:
+
+```bash
+cp client/.env.example client/.env
+cp server/.env.example server/.env
+```
+
+Fill in the Supabase and Gemini values in those files. Compose overrides the client API URL for Docker so the browser calls the published backend port:
+
+```env
+# docker-compose.yml
+VITE_API_BASE_URL=http://localhost:5001
+```
+
+```env
+# server/.env
+PORT=5000
+CLIENT_URL=http://localhost:5173
+```
+
+Build and start the client and server:
+
+```bash
+docker compose up --build
+```
+
+Open the frontend at:
+
+```text
+http://localhost:5173
+```
+
+Check the backend directly at:
+
+```text
+http://localhost:5001
+```
+
+Useful Docker commands:
+
+```bash
+docker compose up
+docker compose down
+docker compose logs -f server
+docker compose logs -f client
+```
+
+The Compose setup bind-mounts `client/` and `server/` into their containers, so source changes continue to reload through Vite and nodemon. Container-only `node_modules` volumes keep dependencies out of your host checkout. Socket.IO runs on the same backend origin as the API, and the server allowlists `http://localhost:5173` for browser requests from the Vite container.
+
+Docker publishes the backend on host port `5001` by default to avoid common macOS conflicts on port `5000`. The server still runs on port `5000` inside the container. To use a different host port, set `SERVER_HOST_PORT` when starting Compose:
+
+```bash
+SERVER_HOST_PORT=5050 docker compose up --build
+```
+
 ## Frontend routes
 - `/` — Home layout shell (campus feed scaffold)
 - `/login` — SLU login (email or username)
@@ -83,7 +144,10 @@ The frontend can use these values if you connect to Supabase or the local API:
 ```env
 VITE_SUPABASE_URL=<your-supabase-url>
 VITE_SUPABASE_ANON_KEY=<your-anon-key>
+VITE_API_BASE_URL=http://localhost:5000
 ```
+
+You can start from `client/.env.example` and copy it to `client/.env`.
 
 **Enable Supabase**
 1. Create a Supabase project.
