@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { normalizePost } from "../lib/postUtils";
+import { apiRequest } from "./config";
 
 const ORGANIZATION_FIELDS = [
   "id",
@@ -19,6 +20,68 @@ function sortOrganizations(organizations) {
   });
 }
 
+function countComments(comments) {
+  return Array.isArray(comments) ? comments.length : 0;
+}
+
+function countLikes(likes) {
+  const value = Number(likes ?? 0);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function buildOrganizationSummaries({ organizations, followers, posts, userId }) {
+  return sortOrganizations(
+    organizations.map((organization) => {
+      const organizationFollowers = followers.filter(
+        (follower) => follower.organization_id === organization.id
+      );
+      const organizationPosts = posts.filter(
+        (post) => post.user_id === organization.profile_id
+      );
+
+      return {
+        ...organization,
+        followers_count: organizationFollowers.length,
+        posts_count: organizationPosts.length,
+        likes_count: organizationPosts.reduce(
+          (total, post) => total + countLikes(post.likes),
+          0
+        ),
+        comments_count: organizationPosts.reduce(
+          (total, post) => total + countComments(post.comments),
+          0
+        ),
+        is_following: Boolean(
+          userId &&
+            organizationFollowers.some((follower) => follower.user_id === userId)
+        ),
+      };
+    })
+  );
+}
+
+async function fetchOrganizationSummariesFromSupabase(userId) {
+  const [organizationsResult, followersResult, postsResult] = await Promise.all([
+    supabase.from("organizations").select(ORGANIZATION_FIELDS),
+    supabase.from("organization_followers").select("user_id, organization_id"),
+    supabase.from("posts").select("id, user_id, likes, comments"),
+  ]);
+
+  const firstError =
+    organizationsResult.error || followersResult.error || postsResult.error;
+
+  if (firstError) {
+    throw new Error(firstError.message);
+  }
+
+  return buildOrganizationSummaries({
+    organizations: organizationsResult.data ?? [],
+    followers: followersResult.data ?? [],
+    posts: postsResult.data ?? [],
+    userId,
+  });
+}
+
 export async function fetchOrganizations() {
   const { data, error } = await supabase
     .from("organizations")
@@ -29,6 +92,20 @@ export async function fetchOrganizations() {
   }
 
   return sortOrganizations(data ?? []);
+}
+
+export async function fetchOrganizationSummaries(userId) {
+  const query = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+  try {
+    const payload = await apiRequest(`/api/organizations${query}`);
+    return Array.isArray(payload) ? payload : payload.organizations ?? [];
+  } catch (error) {
+    if (error instanceof TypeError || /failed to fetch/i.test(error.message)) {
+      return fetchOrganizationSummariesFromSupabase(userId);
+    }
+
+    throw error;
+  }
 }
 
 export async function fetchOrganizationById(orgId) {
