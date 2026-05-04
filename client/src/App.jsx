@@ -1117,24 +1117,12 @@ function App() {
                 >
                   Organizations
                 </button>
-                <button
-                  onClick={() => navigate("/profile")}
-                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
-                >
-                  Profile
-                </button>
-                <button
-                  onClick={() => navigate("/settings")}
-                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
-                >
-                  Settings
-                </button>
-                <button
-                  onClick={() => navigate("/edit-profile")}
-                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
-                >
-                  Edit Profile
-                </button>
+                <div className="rounded bg-slate-100 p-2 text-left text-slate-700">
+                  Events
+                </div>
+                <div className="rounded bg-slate-100 p-2 text-left text-slate-700">
+                  Calendar
+                </div>
               </div>
             </div>
           </aside>
