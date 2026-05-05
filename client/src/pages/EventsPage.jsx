@@ -1,0 +1,231 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import EventCard from "../components/EventCard";
+import {
+  fetchCalendarEvents,
+  removeCalendarEvent,
+  saveCalendarEvent,
+} from "../api/calendar";
+import { fetchEventPosts } from "../api/posts";
+import { isPastEventDate } from "../lib/postComposerUtils";
+import { supabase } from "../supabaseClient";
+
+function EventsPage() {
+  const navigate = useNavigate();
+  const [events, setEvents] = useState([]);
+  const [eventStatusFilter, setEventStatusFilter] = useState("active");
+  const [sessionUserId, setSessionUserId] = useState(null);
+  const [calendarPostIds, setCalendarPostIds] = useState(new Set());
+  const [statusMessage, setStatusMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      try {
+        setIsLoading(true);
+        const [{ data }, eventPosts] = await Promise.all([
+          supabase.auth.getSession(),
+          fetchEventPosts(),
+        ]);
+        const userId = data.session?.user?.id ?? null;
+        const savedEvents = await fetchCalendarEvents(userId);
+
+        if (!isMounted) return;
+        setSessionUserId(userId);
+        setEvents(eventPosts);
+        setCalendarPostIds(
+          new Set(savedEvents.map((event) => String(event.postId)))
+        );
+        setError("");
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError.message || "Unable to load events.");
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const visibleEvents = useMemo(() => {
+    return events
+      .filter((event) => {
+        const isExpired = isPastEventDate(event.eventDate);
+        return eventStatusFilter === "expired" ? isExpired : !isExpired;
+      })
+      .sort((a, b) => String(a.eventDate).localeCompare(String(b.eventDate)));
+  }, [events, eventStatusFilter]);
+
+  const upcomingCount = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events.filter((event) => {
+      const parsed = new Date(`${event.eventDate}T00:00:00`);
+      return !Number.isNaN(parsed.getTime()) && parsed >= today;
+    }).length;
+  }, [events]);
+
+  const handleToggleCalendar = async (event) => {
+    const eventTitle = event.title || "Event";
+    const isInCalendar = calendarPostIds.has(String(event.id));
+
+    try {
+      if (isInCalendar) {
+        await removeCalendarEvent(sessionUserId, event.id);
+        setStatusMessage(`${eventTitle} removed from Calendar.`);
+        setCalendarPostIds((currentIds) => {
+          const nextIds = new Set(currentIds);
+          nextIds.delete(String(event.id));
+          return nextIds;
+        });
+        setError("");
+        return;
+      }
+
+      const result = await saveCalendarEvent(sessionUserId, {
+        postId: event.id,
+        title: event.title,
+        eventDate: event.eventDate,
+        image: event.image,
+      });
+      setStatusMessage(
+        result?.alreadyAdded
+          ? `${eventTitle} is already in your Calendar.`
+          : `${eventTitle} added to Calendar.`
+      );
+      setCalendarPostIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.add(String(event.id));
+        return nextIds;
+      });
+      setError("");
+    } catch (calendarError) {
+      setError(calendarError.message || "Unable to update Calendar.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-sky-200 via-blue-100 to-slate-200 px-4 py-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            Back to Dashboard
+          </button>
+
+          <div className="flex flex-wrap gap-2 text-sm text-slate-700">
+            <span className="rounded-full bg-white/85 px-3 py-1 shadow-sm">
+              {events.length} events
+            </span>
+            <span className="rounded-full bg-white/85 px-3 py-1 shadow-sm">
+              {upcomingCount} upcoming
+            </span>
+          </div>
+        </div>
+
+        <section className="rounded-md border border-white/70 bg-white/80 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.14)] backdrop-blur">
+          <div className="mb-6">
+            <h1 className="text-3xl font-semibold text-slate-900">
+              Events
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Browse campus posts with event dates and add the ones you want to
+              your Calendar.
+            </p>
+          </div>
+
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            {[
+              { value: "active", label: "Active" },
+              { value: "expired", label: "Expired" },
+            ].map((filter) => {
+              const isActive = eventStatusFilter === filter.value;
+
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setEventStatusFilter(filter.value)}
+                  aria-pressed={isActive}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {statusMessage && (
+            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {statusMessage}
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="sr-only" aria-live="polite">
+                Loading events...
+              </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="aspect-[16/9] animate-pulse rounded-md bg-slate-200" />
+                  <div className="mt-4 space-y-3 animate-pulse">
+                    <div className="h-4 w-28 rounded-full bg-slate-100" />
+                    <div className="h-6 w-44 rounded-full bg-slate-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : visibleEvents.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white/85 p-8 text-center text-slate-600">
+              No {eventStatusFilter} events have been posted yet.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  isCalendarActionVisible={!isPastEventDate(event.eventDate)}
+                  actionLabel={
+                    calendarPostIds.has(String(event.id))
+                      ? "Added to Calendar"
+                      : "Add to Calendar"
+                  }
+                  onOpen={() => navigate(`/posts/${event.id}`)}
+                  onAddToCalendar={handleToggleCalendar}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export default EventsPage;

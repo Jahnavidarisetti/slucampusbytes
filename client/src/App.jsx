@@ -21,6 +21,7 @@ import {
   DESCRIPTION_TONE_OPTIONS,
   MAX_IMAGE_SIZE_BYTES,
   TITLE_MAX_LENGTH,
+  getTodayDateString,
   isNetworkFetchError,
   isSchemaCompatibilityError,
   isValidImageFile,
@@ -29,6 +30,18 @@ import {
 
 const POST_CONTENT_PREFIX = "CB_POST_V1::";
 
+function buildPostContentPayload({ title, description, image, eventDate }) {
+  if (!eventDate) return description;
+
+  return `${POST_CONTENT_PREFIX}${encodeURIComponent(
+    JSON.stringify({
+      title,
+      description,
+      image: image || null,
+      eventDate,
+    })
+  )}`;
+}
 
 function newClientUuid() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -53,9 +66,10 @@ function parsePostContent(content) {
       title: typeof parsed.title === "string" ? parsed.title : "",
       description: typeof parsed.description === "string" ? parsed.description : "",
       image: typeof parsed.image === "string" ? parsed.image : null,
+      eventDate: typeof parsed.eventDate === "string" ? parsed.eventDate : null,
     };
   } catch {
-    return { title: "", description: content, image: null };
+    return { title: "", description: content, image: null, eventDate: null };
   }
 }
 
@@ -108,6 +122,7 @@ function mapPostFromApi(post) {
     eventDate:
       (typeof post.eventDate === "string" && post.eventDate) ||
       (typeof post.event_date === "string" && post.event_date) ||
+      parsedLegacy.eventDate ||
       null,
     likes: Number(post.likes ?? 0),
     liked_by: Array.isArray(post.liked_by) ? post.liked_by : [],
@@ -509,6 +524,7 @@ function App() {
     description,
     imageUrl,
     eventDate,
+    content,
   }) => {
     const isMissingColumnError = (error) => {
       const message = String(error?.message || "").toLowerCase();
@@ -526,10 +542,11 @@ function App() {
       "id, user_id, content, created_at",
     ];
 
+    const persistedContent = content || description;
     const payloads = [
       {
         user_id: userId,
-        content: description,
+        content: persistedContent,
         title,
         description,
         image_url: imageUrl || null,
@@ -540,7 +557,7 @@ function App() {
       },
       {
         user_id: userId,
-        content: description,
+        content: persistedContent,
         title,
         description,
         image_url: imageUrl || null,
@@ -549,7 +566,7 @@ function App() {
       },
       {
         user_id: userId,
-        content: description,
+        content: persistedContent,
         title,
         description,
         image_url: imageUrl || null,
@@ -557,7 +574,7 @@ function App() {
       },
       {
         user_id: userId,
-        content: description,
+        content: persistedContent,
       },
     ];
 
@@ -575,7 +592,7 @@ function App() {
           return data;
         }
 
-        if (isMissingColumnError(error)) {
+        if (isMissingColumnError(error) || isSchemaCompatibilityError(error)) {
           lastError = error;
           continue;
         }
@@ -778,9 +795,16 @@ function App() {
       return;
     }
 
+    const contentPayload = buildPostContentPayload({
+      title,
+      description,
+      image: uploadedImageUrl,
+      eventDate,
+    });
+
     try {
       const response = await createPost({
-        content: description,
+        content: contentPayload,
         title,
         description,
         image_url: uploadedImageUrl,
@@ -803,7 +827,7 @@ function App() {
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? uploadedImageUrl,
             event_date: (savedPost.event_date ?? savedPost.eventDate ?? eventDate) || null,
-            content: savedPost.content ?? description,
+            content: savedPost.content ?? contentPayload,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
           }),
@@ -821,6 +845,7 @@ function App() {
           description,
           imageUrl: uploadedImageUrl,
           eventDate,
+          content: contentPayload,
         });
 
         const organizationName =
@@ -836,7 +861,7 @@ function App() {
             description: savedPost.description ?? description,
             image_url: savedPost.image_url ?? uploadedImageUrl,
             event_date: (savedPost.event_date ?? savedPost.eventDate ?? eventDate) || null,
-            content: savedPost.content ?? description,
+            content: savedPost.content ?? contentPayload,
             organization_name: savedPost.organization_name ?? organizationName,
             created_at: savedPost.created_at ?? new Date().toISOString(),
           }),
@@ -1034,6 +1059,7 @@ function App() {
 
   const titleLength = postTitle.length;
   const descriptionLength = postDescription.length;
+  const todayDate = getTodayDateString();
   const isComposerSubmitDisabled =
     loadingCreate ||
     !postTitle.trim() ||
@@ -1145,12 +1171,18 @@ function App() {
                 >
                   Organizations
                 </button>
-                <div className="rounded bg-slate-100 p-2 text-left text-slate-700">
+                <button
+                  onClick={() => navigate("/events")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
                   Events
-                </div>
-                <div className="rounded bg-slate-100 p-2 text-left text-slate-700">
+                </button>
+                <button
+                  onClick={() => navigate("/calendar")}
+                  className="w-full rounded bg-slate-100 p-2 text-left hover:bg-slate-200"
+                >
                   Calendar
-                </div>
+                </button>
               </div>
             </div>
           </aside>
@@ -1284,6 +1316,7 @@ function App() {
                   id="post-event-date"
                   type="date"
                   value={postEventDate}
+                  min={todayDate}
                   onChange={(event) => {
                     setPostEventDate(event.target.value);
                     setApiError(null);

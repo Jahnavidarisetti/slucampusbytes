@@ -31,7 +31,7 @@ describe("post composer utils", () => {
       validateComposerInput({
         title: "Valid title",
         description: "Valid body",
-        eventDate: "2026-05-15",
+        eventDate: "2099-05-15",
       })
     ).toBeNull();
   });
@@ -44,6 +44,16 @@ describe("post composer utils", () => {
         eventDate: "2026-02-31",
       })
     ).toMatch(/event date/i);
+  });
+
+  it("rejects past event dates", () => {
+    expect(
+      validateComposerInput({
+        title: "Valid title",
+        description: "Valid body",
+        eventDate: "2000-01-01",
+      })
+    ).toMatch(/past/i);
   });
 
   it("validates image format and file size", () => {

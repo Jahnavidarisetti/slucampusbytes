@@ -132,7 +132,7 @@ test('POST /api/posts stores and returns eventDate', async () => {
               description: 'Valid description',
               content: 'Valid description',
               image_url: null,
-              event_date: '2026-05-15',
+              event_date: '2099-05-15',
               created_at: '2026-05-01T12:00:00.000Z',
               likes: 0,
               liked_by: [],
@@ -157,15 +157,15 @@ test('POST /api/posts stores and returns eventDate', async () => {
         user_id: 'user-1',
         title: 'Valid title',
         description: 'Valid description',
-        eventDate: '2026-05-15',
+        eventDate: '2099-05-15',
       }),
     });
     const body = await response.json();
 
     assert.equal(response.status, 201);
-    assert.equal(insertedPayload[0].event_date, '2026-05-15');
-    assert.equal(body.post.eventDate, '2026-05-15');
-    assert.equal(body.post.event_date, '2026-05-15');
+    assert.equal(insertedPayload[0].event_date, '2099-05-15');
+    assert.equal(body.post.eventDate, '2099-05-15');
+    assert.equal(body.post.event_date, '2099-05-15');
   } finally {
     await server.close();
   }
@@ -196,6 +196,36 @@ test('POST /api/posts rejects invalid eventDate', async () => {
 
     assert.equal(response.status, 400);
     assert.match(body.error, /eventDate/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test('POST /api/posts rejects past eventDate', async () => {
+  const supabase = {
+    from() {
+      throw new Error('supabase insert should not execute for past eventDate');
+    },
+  };
+
+  const router = loadApiRouter({ supabase });
+  const server = await startTestServer(router);
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/posts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'user-1',
+        title: 'Valid title',
+        description: 'Valid description',
+        eventDate: '2000-01-01',
+      }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /past/i);
   } finally {
     await server.close();
   }

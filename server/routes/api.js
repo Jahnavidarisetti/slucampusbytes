@@ -13,6 +13,8 @@ const {
   buildOrganizationSummaries,
 } = require('../utils/organizationMetrics');
 
+const POST_CONTENT_PREFIX = 'CB_POST_V1::';
+
 // Test GET route
 router.get('/test', (req, res) => {
   res.json({ message: 'GET route working!' });
@@ -358,7 +360,10 @@ router.post('/posts', async (req, res) => {
 
     const insertBody = buildInsertPayload({
       userId: resolvedUserId,
-      content: payloadValidation.normalizedDescription,
+      content:
+        typeof content === 'string' && content.startsWith(POST_CONTENT_PREFIX)
+          ? content
+          : payloadValidation.normalizedDescription,
       title: payloadValidation.normalizedTitle,
       description: payloadValidation.normalizedDescription,
       imageUrl: payloadValidation.normalizedImageUrl,

@@ -37,6 +37,17 @@ function normalizeEventDate(value) {
     return { error: 'eventDate must be a valid date in YYYY-MM-DD format.' };
   }
 
+  const today = new Date();
+  const todayDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  if (trimmed < todayDate) {
+    return { error: 'eventDate cannot be in the past.' };
+  }
+
   return { error: null, eventDate: trimmed };
 }
 

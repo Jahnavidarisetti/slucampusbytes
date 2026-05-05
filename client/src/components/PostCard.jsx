@@ -1,5 +1,7 @@
 ﻿import AvatarBadge from "./AvatarBadge";
 
+import { formatEventDate } from "./EventCard";
+
 function formatPostDate(createdAt) {
   if (!createdAt) return "Campus update";
 
@@ -48,6 +50,12 @@ function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile 
         </h4>
       )}
 
+      {post.eventDate && (
+        <p className="mb-3 rounded-md bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800">
+          Event Date: {formatEventDate(post.eventDate)}
+        </p>
+      )}
+
       <p className="mb-3 whitespace-pre-wrap text-slate-700">{post.content}</p>
 
       {post.image && (
@@ -60,6 +68,7 @@ function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile 
 
       <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
         <button
+          type="button"
           onClick={() => onLike(post.id)}
           className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 hover:text-blue-600"
         >
@@ -67,6 +76,7 @@ function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile 
         </button>
 
         <button
+          type="button"
           onClick={() => onToggleComments(post.id)}
           className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 hover:text-blue-600"
         >
@@ -100,13 +110,13 @@ function PostCard({ post, onLike, onToggleComments, onAddComment, onOpenProfile 
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.target;
-              const input = form.comment;
-              const value = input.value.trim();
+              const formData = new FormData(form);
+              const value = String(formData.get("comment") ?? "").trim();
 
               if (!value) return;
 
               onAddComment(post.id, value);
-              input.value = "";
+              form.reset();
             }}
             className="flex gap-2"
           >
