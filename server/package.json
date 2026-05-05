@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node tests/posts.test.js && node tests/api.posts.test.js && node tests/api.integration.test.js && node tests/ai-rewrite.test.js"
+    "test": "node tests/posts.test.js && node tests/api.posts.test.js && node tests/api.integration.test.js && node tests/ai-rewrite.test.js && node tests/bridge.test.js && node tests/migrations.test.js"
   },
   "keywords": [],
   "author": "",

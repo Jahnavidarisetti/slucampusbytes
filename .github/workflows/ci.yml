@@ -3,6 +3,8 @@ name: CI
 "on":
   pull_request:
     branches: [main, develop]
+  push:
+    branches: [main]
 
 jobs:
   test:
@@ -51,6 +53,11 @@ jobs:
         if: steps.npm.outputs.has_root == 'true'
         working-directory: client
         run: npm test -- --run
+
+      - name: Build Client
+        if: steps.npm.outputs.has_root == 'true'
+        working-directory: client
+        run: npm run build
 
       - name: Install Server
         if: steps.npm.outputs.has_root == 'true'
