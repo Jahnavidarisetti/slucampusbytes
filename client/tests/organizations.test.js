@@ -212,7 +212,7 @@ describe("Organization followers", () => {
 describe("Organization listing API", () => {
   it("loads organization summaries with the current user id", async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(async (url) => ({
+    globalThis.fetch = vi.fn(async (_url) => ({
       ok: true,
       json: async () => ({
         ok: true,

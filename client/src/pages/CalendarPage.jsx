@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCalendarEvents } from "../api/calendar";
-import { formatEventDate } from "../components/EventCard";
+import { formatEventDate } from "../lib/eventUtils";
 import { supabase } from "../supabaseClient";
 
 function CalendarPage() {

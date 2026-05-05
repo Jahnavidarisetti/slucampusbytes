@@ -148,6 +148,10 @@ function buildProfileSyncPayload(profile = {}, metadata = {}) {
     payload.avatar_url = avatarUrl;
   }
 
+  if (description && !profile.organization_description) {
+    payload.organization_description = description;
+  }
+
   return payload;
 }
 

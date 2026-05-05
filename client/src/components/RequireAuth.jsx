@@ -1,0 +1,50 @@
+import { useEffect, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { supabase } from "../supabaseClient";
+
+function RequireAuth({ children }) {
+  const location = useLocation();
+  const [session, setSession] = useState(undefined);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (isMounted) {
+        setSession(data.session ?? null);
+      }
+    };
+
+    fetchSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (isMounted) {
+        setSession(nextSession ?? null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (session === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-700">
+        Loading session...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+export default RequireAuth;
