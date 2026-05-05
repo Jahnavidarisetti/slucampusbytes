@@ -115,6 +115,55 @@ Docker publishes the backend on host port `5001` by default to avoid common macO
 SERVER_HOST_PORT=5050 docker compose up --build
 ```
 
+## Push and run with Docker Hub
+This project does not have a root `Dockerfile`. It has separate Dockerfiles for the frontend and backend:
+
+```text
+client/Dockerfile
+server/Dockerfile
+```
+
+Because of this, build the client and server Docker images separately from the root project folder:
+
+```bash
+docker build -t premkiranpolepalli/slucampusbytes-client:latest ./client
+docker build -t premkiranpolepalli/slucampusbytes-server:latest ./server
+```
+
+Push both images to Docker Hub:
+
+```bash
+docker push premkiranpolepalli/slucampusbytes-client:latest
+docker push premkiranpolepalli/slucampusbytes-server:latest
+```
+
+Another person can pull both images:
+
+```bash
+docker pull premkiranpolepalli/slucampusbytes-client:latest
+docker pull premkiranpolepalli/slucampusbytes-server:latest
+```
+
+Run the server first:
+
+```bash
+docker run -p 5001:5000 --env-file server/.env premkiranpolepalli/slucampusbytes-server:latest
+```
+
+Then run the client in another terminal:
+
+```bash
+docker run -p 5173:5173 --env-file client/.env -e VITE_API_BASE_URL=http://localhost:5001 premkiranpolepalli/slucampusbytes-client:latest
+```
+
+After both containers are running, open the web app at:
+
+```text
+http://localhost:5173
+```
+
+The person running the images needs the required `.env` files or equivalent environment values for both the client and server. Do not push `.env` files, API keys, database passwords, or other secrets to Docker Hub or GitHub. Share environment values separately and securely.
+
 ## Frontend routes
 - `/` — Home layout shell (campus feed scaffold)
 - `/login` — SLU login (email or username)
