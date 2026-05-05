@@ -1,16 +1,4 @@
-function formatEventDate(eventDate) {
-  if (!eventDate) return "Date TBD";
-
-  const parsed = new Date(`${eventDate}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return eventDate;
-
-  return parsed.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { formatEventDate } from "../lib/eventUtils";
 
 function EventCard({
   event,
@@ -70,5 +58,4 @@ function EventCard({
   );
 }
 
-export { formatEventDate };
 export default EventCard;

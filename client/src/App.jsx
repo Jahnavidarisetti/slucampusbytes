@@ -166,13 +166,7 @@ function mergePersistedPost(previousPost, persistedPost) {
   };
 }
 
-export const incrementLike = (posts, id) => {
-  return posts.map((post) =>
-    post.id === id ? { ...post, likes: post.likes + 1 } : post
-  );
-};
-
-export const toggleComments = (posts, id) => {
+const toggleComments = (posts, id) => {
   return posts.map((post) =>
     post.id === id
       ? { ...post, showComments: !post.showComments }
@@ -180,7 +174,7 @@ export const toggleComments = (posts, id) => {
   );
 };
 
-export const addComment = (posts, postId, commentText, author = {}) => {
+const addComment = (posts, postId, commentText, author = {}) => {
   if (!commentText.trim()) return posts;
 
   const newComment = {

@@ -1,6 +1,6 @@
 ﻿import AvatarBadge from "./AvatarBadge";
 
-import { formatEventDate } from "./EventCard";
+import { formatEventDate } from "../lib/eventUtils";
 
 function formatPostDate(createdAt) {
   if (!createdAt) return "Campus update";
