@@ -126,34 +126,34 @@ server/Dockerfile
 Because of this, build the client and server Docker images separately from the root project folder:
 
 ```bash
-docker build -t premkiranpolepalli/slucampusbytes-client:latest ./client
-docker build -t premkiranpolepalli/slucampusbytes-server:latest ./server
+docker build -t <dockerhub-username>/<client-image-name>:latest ./client
+docker build -t <dockerhub-username>/<server-image-name>:latest ./server
 ```
 
 Push both images to Docker Hub:
 
 ```bash
-docker push premkiranpolepalli/slucampusbytes-client:latest
-docker push premkiranpolepalli/slucampusbytes-server:latest
+docker push <dockerhub-username>/<client-image-name>:latest
+docker push <dockerhub-username>/<server-image-name>:latest
 ```
 
 Another person can pull both images:
 
 ```bash
-docker pull premkiranpolepalli/slucampusbytes-client:latest
-docker pull premkiranpolepalli/slucampusbytes-server:latest
+docker pull <dockerhub-username>/<client-image-name>:latest
+docker pull <dockerhub-username>/<server-image-name>:latest
 ```
 
 Run the server first:
 
 ```bash
-docker run -p 5001:5000 --env-file server/.env premkiranpolepalli/slucampusbytes-server:latest
+docker run -p 5001:5000 --env-file server/.env <dockerhub-username>/<server-image-name>:latest
 ```
 
 Then run the client in another terminal:
 
 ```bash
-docker run -p 5173:5173 --env-file client/.env -e VITE_API_BASE_URL=http://localhost:5001 premkiranpolepalli/slucampusbytes-client:latest
+docker run -p 5173:5173 --env-file client/.env -e VITE_API_BASE_URL=http://localhost:5001 <dockerhub-username>/<client-image-name>:latest
 ```
 
 After both containers are running, open the web app at:
@@ -163,6 +163,8 @@ http://localhost:5173
 ```
 
 The person running the images needs the required `.env` files or equivalent environment values for both the client and server. Do not push `.env` files, API keys, database passwords, or other secrets to Docker Hub or GitHub. Share environment values separately and securely.
+
+Replace `<dockerhub-username>`, `<client-image-name>`, and `<server-image-name>` with the Docker Hub account and image names you want to use.
 
 ## Frontend routes
 - `/` — Home layout shell (campus feed scaffold)
