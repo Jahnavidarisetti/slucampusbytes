@@ -1,9 +1,17 @@
 const DEFAULT_API_BASE_URL = "http://localhost:5000";
 
+function normalizeApiBaseUrl(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\/+$/, "");
+}
+
 export const API_BASE_URL =
   import.meta.env.MODE === "test"
     ? DEFAULT_API_BASE_URL
-    : import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+    : normalizeApiBaseUrl(
+        import.meta.env.VITE_API_BASE_URL ||
+          (import.meta.env.DEV ? DEFAULT_API_BASE_URL : "")
+      );
 
 export async function apiRequest(path, options = {}) {
   const url = `${API_BASE_URL}${path}`;
@@ -20,6 +28,12 @@ export async function apiRequest(path, options = {}) {
 
   const res = await fetch(url, config);
   const payload = await res.json().catch(() => null);
+
+  if (!payload) {
+    throw new Error(
+      "Invalid API response. Check that VITE_API_BASE_URL points to the backend API."
+    );
+  }
 
   if (!res.ok) {
     const message = payload?.error || payload?.message || res.statusText;

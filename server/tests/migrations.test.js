@@ -67,6 +67,18 @@ test('organizations migration creates parent table and remaps follower relations
   assert.match(sql, /create policy "Organizations are viewable by everyone"/i);
 });
 
+test('post interaction migration adds authenticated RPC fallbacks', () => {
+  const sql = readMigration('20260506120000_add_post_interaction_rpcs.sql');
+
+  assert.match(sql, /create or replace function public\.toggle_post_like/i);
+  assert.match(sql, /create or replace function public\.append_post_comment/i);
+  assert.match(sql, /security definer/i);
+  assert.match(sql, /auth\.uid\(\) <> actor_user_id/i);
+  assert.match(sql, /new_comment->>'user_id' <> auth\.uid\(\)::text/i);
+  assert.match(sql, /grant execute on function public\.toggle_post_like\(uuid, uuid\) to authenticated/i);
+  assert.match(sql, /grant execute on function public\.append_post_comment\(uuid, jsonb\) to authenticated/i);
+});
+
 async function run() {
   let failures = 0;
 
