@@ -614,11 +614,61 @@ function App() {
       "id, user_id, content, created_at",
     ];
 
-    const readAttempts = [
-      "id, likes, liked_by",
-      "id, likes",
-      "id",
-    ];
+  const readAttempts = [
+    "id, likes, liked_by",
+    "id, likes",
+    "id",
+  ];
+
+    const isMissingFunctionError = (error) => {
+      const message = String(error?.message || "").toLowerCase();
+      return (
+        message.includes("function") &&
+        (message.includes("does not exist") || message.includes("schema cache"))
+      );
+    };
+
+    const normalizeRpcPost = (data) => {
+      if (Array.isArray(data)) return data[0] ?? null;
+      return data ?? null;
+    };
+
+    const updateLikeViaRpc = async (userId) => {
+      const { data, error } = await supabase.rpc("toggle_post_like", {
+        target_post_id: postId,
+        actor_user_id: userId,
+      });
+
+      if (error) {
+        if (isMissingFunctionError(error) || isSchemaCompatibilityError(error)) {
+          return null;
+        }
+        throw error;
+      }
+
+      return normalizeRpcPost(data);
+    };
+
+    const appendCommentViaRpc = async (comments) => {
+      const newComment = comments[comments.length - 1];
+      if (!newComment) {
+        throw new Error("Comment not found in local state.");
+      }
+
+      const { data, error } = await supabase.rpc("append_post_comment", {
+        target_post_id: postId,
+        new_comment: newComment,
+      });
+
+      if (error) {
+        if (isMissingFunctionError(error) || isSchemaCompatibilityError(error)) {
+          return null;
+        }
+        throw error;
+      }
+
+      return normalizeRpcPost(data);
+    };
 
     const payload = {};
 
@@ -657,6 +707,11 @@ function App() {
         !updates.like_user_id.trim()
       ) {
         throw new Error("like_user_id must be a non-empty string.");
+      }
+
+      const rpcPost = await updateLikeViaRpc(updates.like_user_id.trim());
+      if (rpcPost) {
+        return rpcPost;
       }
 
       let currentData = null;
@@ -714,6 +769,17 @@ function App() {
 
     if (Object.keys(payload).length === 0) {
       throw new Error("No valid fields to update.");
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(payload, "comments") &&
+      !Object.prototype.hasOwnProperty.call(payload, "liked_by") &&
+      !Object.prototype.hasOwnProperty.call(payload, "likes")
+    ) {
+      const rpcPost = await appendCommentViaRpc(payload.comments);
+      if (rpcPost) {
+        return rpcPost;
+      }
     }
 
     const variants = [payload];

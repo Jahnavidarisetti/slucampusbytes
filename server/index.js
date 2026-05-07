@@ -8,8 +8,17 @@ const createPostsRouter = require('./routes/posts');
 const { setupSocketHandlers } = require('./sockets/postHandler');
 
 const app = express();
+function splitOrigins(value) {
+  return String(value || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  ...splitOrigins(process.env.CLIENT_URL),
+  ...splitOrigins(process.env.CLIENT_URLS),
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ].filter(Boolean);
